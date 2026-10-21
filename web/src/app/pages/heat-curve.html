@@ -62,6 +62,42 @@
         <span class="num">{{ fmt(n.at, 1) }} °C → <strong>{{ fmt(n.flow, 1) }} °C</strong></span>
       }
     </div>
+
+    @if (boiler.allowWrite()) {
+      <div class="editor">
+        <div class="field">
+          <label>Steilheit</label>
+          <div class="stepper">
+            <button (click)="stepSlope(vm.curve.circuit, -1)"
+              [disabled]="busy() !== null || draft(vm.curve.circuit).slope <= SLOPE.min">−</button>
+            <span class="val num">{{ fmt(draft(vm.curve.circuit).slope, 1) }}</span>
+            <button (click)="stepSlope(vm.curve.circuit, 1)"
+              [disabled]="busy() !== null || draft(vm.curve.circuit).slope >= SLOPE.max">+</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Parallelv.</label>
+          <div class="stepper">
+            <button (click)="stepShift(vm.curve.circuit, -1)"
+              [disabled]="busy() !== null || draft(vm.curve.circuit).shift <= SHIFT.min">−</button>
+            <span class="val num">{{ draft(vm.curve.circuit).shift }} K</span>
+            <button (click)="stepShift(vm.curve.circuit, 1)"
+              [disabled]="busy() !== null || draft(vm.curve.circuit).shift >= SHIFT.max">+</button>
+          </div>
+        </div>
+        <span class="spacer"></span>
+        @if (dirty(vm.curve.circuit)) {
+          <button class="small" (click)="resetDraft(vm.curve.circuit)" [disabled]="busy() !== null">Zurück</button>
+        }
+        <button class="primary small" (click)="save(vm.curve.circuit)"
+          [disabled]="busy() !== null || !dirty(vm.curve.circuit) || !boiler.canWrite()">
+          @if (busy() === vm.curve.circuit) { <span class="spin"></span> } Setzen
+        </button>
+      </div>
+      @if (!boiler.canWrite()) {
+        <p class="warn-hint">🔒 Schreibschutz aktiv – zum Ändern unter ⚙ Einstellungen deaktivieren.</p>
+      }
+    }
   </section>
 }
 
