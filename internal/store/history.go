@@ -21,6 +21,11 @@ var HistoryChannels = []string{
 	"Warmwasser 0",
 	"Leistung",
 	"Pufferladung",
+	// Flow temperatures per heating circuit — recorded for the heating-curve view
+	// (outdoor temperature vs. actual flow).
+	"Vorlauf Ist 0",
+	"Vorlauf Ist 1",
+	"Vorlauf Ist 2",
 }
 
 // runningChannel drives the burner-running gate (starts, runtime, cycle length):

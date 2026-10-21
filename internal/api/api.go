@@ -26,9 +26,11 @@ type ParamWriter interface {
 	SetParam(ctx context.Context, syn, value string) (string, error)
 }
 
-// ScheduleReader reads the device's time programs ("Uhrenprogramme") via par.cgi.
-type ScheduleReader interface {
+// DeviceReader reads configuration the device exposes via par.cgi: the time programs
+// ("Uhrenprogramme") and the per-circuit heating curves ("Heizkurve"). Both read-only.
+type DeviceReader interface {
 	Schedules(ctx context.Context) ([]boiler.Schedule, error)
+	HeatCurves(ctx context.Context) ([]boiler.HeatCurve, error)
 }
 
 // SettingsStore exposes the write-protection settings, backed by the YAML config.
@@ -51,13 +53,13 @@ type Server struct {
 	// webFS is the embedded single-page app served at / with history-API fallback.
 	webFS   fs.FS
 	history *store.History
-	sched   ScheduleReader
+	sched   DeviceReader
 	audit   *store.AuditLog
 }
 
 // NewServer builds the HTTP server from its collaborators. history, sched, audit and
 // webFS may be nil to disable the corresponding features.
-func NewServer(p *service.Poller, param ParamWriter, sched ScheduleReader, history *store.History, audit *store.AuditLog, webFS fs.FS, settings SettingsStore) *Server {
+func NewServer(p *service.Poller, param ParamWriter, sched DeviceReader, history *store.History, audit *store.AuditLog, webFS fs.FS, settings SettingsStore) *Server {
 	return &Server{
 		poller:   p,
 		param:    param,
@@ -123,6 +125,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/api/history", s.handleHistory)
 	mux.HandleFunc("/api/insights", s.handleInsights)
 	mux.HandleFunc("/api/schedules", s.handleSchedules)
+	mux.HandleFunc("/api/heatcurve", s.handleHeatCurves)
 	mux.HandleFunc("/api/audit", s.handleAudit)
 	s.registerLoxone(mux)
 	return mux
@@ -194,6 +197,20 @@ func (s *Server) handleSchedules(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"schedules": schedules})
+}
+
+// handleHeatCurves returns the configured heating curves per circuit, read-only.
+func (s *Server) handleHeatCurves(w http.ResponseWriter, r *http.Request) {
+	if s.sched == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Heizkurve nicht verfügbar"})
+		return
+	}
+	curves, err := s.sched.HeatCurves(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"curves": curves})
 }
 
 // handleAudit returns the recent change log (newest first): GET /api/audit?limit=100.

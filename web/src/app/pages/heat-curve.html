@@ -1,0 +1,76 @@
+<div class="page-head">
+  <h2>Heizkurve</h2>
+  <span class="tools">
+    @if (loading()) { <span class="spin"></span> }
+    <button class="small" (click)="reload()">Neu laden</button>
+  </span>
+</div>
+
+@if (error()) {
+  <div class="banner err">⚠️ {{ error() }}</div>
+}
+
+@if (!loading() && !curves().length && !error()) {
+  <div class="banner">Keine Heizkurven-Parameter gefunden.</div>
+}
+
+@for (vm of vms(); track vm.curve.circuit) {
+  <section class="card">
+    <div class="ch-head">
+      <h3>{{ vm.curve.title }}</h3>
+      <div class="chips">
+        <span class="chip">Steilheit <strong>{{ fmt(vm.curve.slope, 2) }}</strong></span>
+        <span class="chip">Parallelv. <strong>{{ fmt(vm.curve.shift, 0) }} K</strong></span>
+        <span class="chip">Vorlauf <strong>{{ fmt(vm.curve.flowMin, 0) }}–{{ fmt(vm.curve.flowMax, 0) }} °C</strong></span>
+      </div>
+    </div>
+
+    <svg [attr.viewBox]="'0 0 ' + W + ' ' + H" class="chart" preserveAspectRatio="xMidYMid meet">
+      <!-- grid + axes -->
+      @for (x of vm.xticks; track x.label) {
+        <line class="grid" [attr.x1]="x.p" [attr.x2]="x.p" [attr.y1]="PAD.t" [attr.y2]="H - PAD.b" />
+        <text class="tick" [attr.x]="x.p" [attr.y]="H - PAD.b + 14" text-anchor="middle">{{ x.label }}</text>
+      }
+      @for (y of vm.yticks; track y.label) {
+        <line class="grid" [attr.x1]="PAD.l" [attr.x2]="W - PAD.r" [attr.y1]="y.p" [attr.y2]="y.p" />
+        <text class="tick" [attr.x]="PAD.l - 6" [attr.y]="y.p + 4" text-anchor="end">{{ y.label }}</text>
+      }
+      <text class="axis" [attr.x]="W - PAD.r" [attr.y]="H - 2" text-anchor="end">Außen °C</text>
+      <text class="axis" [attr.x]="PAD.l + 4" y="9" text-anchor="start">Vorlauf °C</text>
+
+      <!-- linear reference guide -->
+      <polyline class="guide" [attr.points]="vm.guide" />
+
+      <!-- measured points (outdoor vs. actual flow) -->
+      @for (d of vm.dots; track $index) {
+        <circle class="dot" [attr.cx]="d.cx" [attr.cy]="d.cy" r="2.2" />
+      }
+
+      <!-- live "now" marker -->
+      @if (vm.now; as n) {
+        <line class="now" [attr.x1]="n.cx" [attr.x2]="n.cx" [attr.y1]="PAD.t" [attr.y2]="H - PAD.b" />
+        <circle class="nowdot" [attr.cx]="n.cx" [attr.cy]="n.cy" r="4.5" />
+      }
+    </svg>
+
+    <div class="legend">
+      <span><i class="guide"></i>linearer Richtwert (min↔max)</span>
+      <span><i class="dot"></i>gemessen ({{ vm.count }})</span>
+      @if (vm.now; as n) {
+        <span><i class="now"></i>jetzt</span>
+        <span class="spacer"></span>
+        <span class="num">{{ fmt(n.at, 1) }} °C → <strong>{{ fmt(n.flow, 1) }} °C</strong></span>
+      }
+    </div>
+  </section>
+}
+
+@if (curves().length) {
+  <p class="note muted">
+    Nur-Lese-Ansicht der Heizkurven-Einstellungen des Kessels (Steilheit,
+    Parallelverschiebung, Vorlaufgrenzen). Die Punktwolke zeigt die tatsächlich gemessenen
+    Werte (Außentemperatur ↔ Vorlauf, nur bei laufender Heizung) der letzten {{ days() }} Tage
+    und füllt sich mit der Zeit. Der „Richtwert" ist eine lineare Hilfslinie zwischen min und
+    max – nicht die interne Regelkurve des Kessels.
+  </p>
+}

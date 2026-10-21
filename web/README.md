@@ -115,5 +115,5 @@ cd web && npm start   # -> http://localhost:4200
 - `src/app/core/api.ts` – `httpResource`-Lesekanal + `setParam()`-Schreiben
 - `src/app/core/models.ts` – Typen passend zum `/api/values`-Snapshot
 - `src/app/core/config.ts` – Modus-Enums (`PR001`, `HK0xx`), Kachel-/Heizkreis-Definitionen
-- `src/app/pages/*` – Overview, Zeiten, Auswertung, Loxone, Protokoll, Einstellungen
+- `src/app/pages/*` – Overview, Zeiten, Heizkurve, Auswertung, Loxone, Protokoll, Einstellungen
 - `src/app/shell.ts` – Topbar, Navigation (Router) und Status-Banner

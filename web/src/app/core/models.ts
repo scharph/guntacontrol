@@ -109,6 +109,23 @@ export interface SchedulesResponse {
   schedules: Schedule[];
 }
 
+// ---- Heizkurve (heating curve) ----
+
+export interface HeatCurve {
+  circuit: number;
+  title: string;
+  slope: number; // Steilheit
+  shift: number; // Parallelverschiebung (K)
+  flowMin: number; // Vorlauf min (°C)
+  flowMax: number; // Vorlauf max (°C)
+  outdoorChannel: string;
+  flowChannel: string;
+}
+
+export interface HeatCurvesResponse {
+  curves: HeatCurve[];
+}
+
 // ---- Audit (change log) ----
 
 export interface AuditEntry {

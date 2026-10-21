@@ -9,6 +9,8 @@ Prometheus-Metriken, SQLite-Verlauf, Loxone-Anbindung und Audit-Log.
 - **Dashboard** (Angular 22, zoneless/signals) – Live-Werte, Betriebsmodus und
   Heizkreis-Programme schalten, mit Schreibschutz.
 - **Zeiten** – Anzeige der Uhrenprogramme (read-only; am Kessel-Bedienteil einstellbar).
+- **Heizkurve** – je Heizkreis Steilheit/Parallelverschiebung/Vorlaufgrenzen plus gemessene
+  Außen-↔-Vorlauf-Punktwolke (read-only).
 - **Auswertung** – Verlaufsdiagramme und Tagesstatistiken aus einer SQLite-Historie.
 - **Loxone** – Klartext-HTTP-Endpunkte und optionaler UDP-Push (siehe [`loxone.md`](loxone.md)).
 - **Protokoll** – Audit-Log aller Änderungen (wer/wann/was/Ergebnis), in SQLite.

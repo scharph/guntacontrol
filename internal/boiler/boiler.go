@@ -48,3 +48,21 @@ type Schedule struct {
 	Kind     string            `json:"kind"` // "heating" | "water" | "circulation"
 	Variants []ScheduleVariant `json:"variants"`
 }
+
+// ---- heating curve (Heizkurve) ----
+
+// HeatCurve is the configured weather-compensation curve of one heating circuit,
+// read from par.cgi. The Flex uses a slope ("Steilheit") model with a parallel shift
+// and min/max flow-temperature limits; there is no published flow-setpoint formula, so
+// the UI pairs these settings with the recorded outdoor/flow data rather than drawing a
+// computed setpoint line.
+type HeatCurve struct {
+	Circuit        int     `json:"circuit"`        // 0-based heating circuit index
+	Title          string  `json:"title"`          // "Heizkreis 0"
+	Slope          float64 `json:"slope"`          // Steilheit (HKx07)
+	Shift          float64 `json:"shift"`          // Parallelverschiebung, K (HPx09)
+	FlowMin        float64 `json:"flowMin"`        // Vorlauf min, °C (HPx05)
+	FlowMax        float64 `json:"flowMax"`        // Vorlauf max, °C (HPx06)
+	OutdoorChannel string  `json:"outdoorChannel"` // daqdata channel for the outdoor temp
+	FlowChannel    string  `json:"flowChannel"`    // daqdata channel for the actual flow temp
+}

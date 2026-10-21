@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import {
   AuditResponse,
   ChannelValue,
+  HeatCurvesResponse,
   HistoryResponse,
   Insights,
   ParamAck,
@@ -124,6 +125,12 @@ export class BoilerService {
 
   schedules(): Promise<SchedulesResponse> {
     return firstValueFrom(this.http.get<SchedulesResponse>('/api/schedules'));
+  }
+
+  // ---- Heizkurve (heating curve, read-only) ----
+
+  heatCurves(): Promise<HeatCurvesResponse> {
+    return firstValueFrom(this.http.get<HeatCurvesResponse>('/api/heatcurve'));
   }
 
   // ---- Audit (change log) ----

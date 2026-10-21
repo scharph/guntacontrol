@@ -10,6 +10,7 @@ type Theme = 'auto' | 'light' | 'dark';
 const NAV: { path: string; label: string; icon: string; exact?: boolean }[] = [
   { path: '/', label: 'Übersicht', icon: '◉', exact: true },
   { path: '/zeiten', label: 'Zeiten', icon: '🕑' },
+  { path: '/heizkurve', label: 'Heizkurve', icon: '📉' },
   { path: '/auswertung', label: 'Auswertung', icon: '📈' },
   { path: '/loxone', label: 'Loxone', icon: '🏠' },
   { path: '/protokoll', label: 'Protokoll', icon: '📝' },
