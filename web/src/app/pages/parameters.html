@@ -1,0 +1,58 @@
+<div class="page-head">
+  <h2>Parameter</h2>
+  <span class="tools">
+    @if (loading()) { <span class="spin"></span> }
+    <button class="small" (click)="reload()">Neu laden</button>
+  </span>
+</div>
+
+@if (error()) {
+  <div class="banner err">⚠️ {{ error() }}</div>
+}
+
+<div class="filters">
+  <input type="search" placeholder="Suchen (Name oder Kürzel)…" [value]="search()"
+    (input)="setSearch($any($event.target).value)" />
+  <select [value]="group()" (change)="group.set($any($event.target).value)">
+    <option value="all">Alle Gruppen</option>
+    @for (g of groups(); track g.id) {
+      <option [value]="g.id">{{ g.label }}</option>
+    }
+  </select>
+  <span class="spacer"></span>
+  <span class="count muted">{{ rows().length }} / {{ params().length }}</span>
+</div>
+
+@if (!loading() && params().length) {
+  <div class="card scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Kürzel</th>
+          <th>Bezeichnung</th>
+          <th class="r">Wert</th>
+          <th class="r">Grenzen</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (p of rows(); track p.syn) {
+          <tr>
+            <td class="mono muted">{{ p.syn }}</td>
+            <td>{{ p.label }}</td>
+            <td class="r val">{{ p.value || '–' }}<span class="unit"> {{ p.unit }}</span></td>
+            <td class="r muted limits">{{ limits(p) }}<span class="unit">{{ p.kind === 'number' && p.unit ? ' ' + p.unit : '' }}</span></td>
+          </tr>
+        }
+        @if (!rows().length) {
+          <tr><td colspan="4" class="muted empty">Keine Parameter für diese Auswahl.</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+<p class="note muted">
+  Nur-Lese-Übersicht aller Geräteparameter aus <code>par.cgi</code> (Bezeichnungen vom
+  Kessel). „Grenzen" zeigt bei Zahlenwerten den erlaubten Bereich, bei Auswahlparametern
+  die aktuell gewählte Option. Uhrenprogramme stehen unter „Zeiten".
+</p>

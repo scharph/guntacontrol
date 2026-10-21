@@ -31,6 +31,7 @@ type ParamWriter interface {
 type DeviceReader interface {
 	Schedules(ctx context.Context) ([]boiler.Schedule, error)
 	HeatCurves(ctx context.Context) ([]boiler.HeatCurve, error)
+	Params(ctx context.Context) ([]boiler.Param, error)
 }
 
 // SettingsStore exposes the write-protection settings, backed by the YAML config.
@@ -126,6 +127,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/api/insights", s.handleInsights)
 	mux.HandleFunc("/api/schedules", s.handleSchedules)
 	mux.HandleFunc("/api/heatcurve", s.handleHeatCurves)
+	mux.HandleFunc("/api/params", s.handleParams)
 	mux.HandleFunc("/api/audit", s.handleAudit)
 	s.registerLoxone(mux)
 	return mux
@@ -211,6 +213,20 @@ func (s *Server) handleHeatCurves(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"curves": curves})
+}
+
+// handleParams returns the full par.cgi parameter table (values + limits), read-only.
+func (s *Server) handleParams(w http.ResponseWriter, r *http.Request) {
+	if s.sched == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Parameter nicht verfügbar"})
+		return
+	}
+	params, err := s.sched.Params(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"params": params})
 }
 
 // handleAudit returns the recent change log (newest first): GET /api/audit?limit=100.

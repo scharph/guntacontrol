@@ -1,0 +1,112 @@
+package device
+
+import (
+	"context"
+	"strconv"
+	"strings"
+
+	"guntacontrol/internal/boiler"
+)
+
+// Params fetches par.cgi and returns the decoded parameter table (all configurable
+// points with their current value and, for numeric parameters, the allowed range).
+// Read-only.
+func (b *FlexBackend) Params(ctx context.Context) ([]boiler.Param, error) {
+	lines, err := b.get(ctx, "/par.cgi")
+	if err != nil {
+		return nil, err
+	}
+	out := make([]boiler.Param, 0, len(lines))
+	for _, line := range lines {
+		if p, ok := parseParam(line); ok {
+			out = append(out, p)
+		}
+	}
+	return out, nil
+}
+
+// par.cgi line layout by type field:
+//
+//	2/3  numeric  SYN;t;value;min;max;step;unit;default;0;0;0;Label;
+//	6    enum     SYN;t;index;…;Label;opt0;opt1;…
+//	8    text     SYN;t;value;charset;Label;
+//	9    clock     the week programs — shown on the Zeiten page, skipped here
+func parseParam(line string) (boiler.Param, bool) {
+	f := strings.Split(line, ";")
+	if len(f) < 3 {
+		return boiler.Param{}, false
+	}
+	syn := strings.TrimSpace(f[0])
+	t, err := strconv.Atoi(strings.TrimSpace(f[1]))
+	if err != nil || syn == "" {
+		return boiler.Param{}, false // header / malformed line
+	}
+
+	p := boiler.Param{Syn: syn, Group: synPrefix(syn)}
+	val := field(f, 2)
+
+	switch t {
+	case 2, 3: // numeric
+		p.Kind = "number"
+		p.Value = val
+		p.Min = field(f, 3)
+		p.Max = field(f, 4)
+		p.Unit = field(f, 6)
+		p.Default = field(f, 7)
+		p.Label = lastNonEmpty(f)
+	case 6: // enum: map the selected index to its option label
+		p.Kind = "enum"
+		p.Label = field(f, 8)
+		opts := []string{}
+		if len(f) > 9 {
+			opts = f[9:]
+		}
+		if idx, e := strconv.Atoi(val); e == nil && idx >= 0 && idx < len(opts) {
+			p.Value = strings.TrimSpace(opts[idx])
+		} else {
+			p.Value = val
+		}
+	case 8: // text
+		p.Kind = "text"
+		p.Value = val
+		p.Label = lastNonEmpty(f)
+	case 9: // clock program — handled on the Zeiten page
+		return boiler.Param{}, false
+	default: // 7 and others: value + label, no reliable limits
+		p.Kind = "number"
+		p.Value = val
+		p.Unit = field(f, 6)
+		p.Label = lastNonEmpty(f)
+	}
+	if p.Label == "" {
+		p.Label = syn
+	}
+	return p, true
+}
+
+func field(f []string, i int) string {
+	if i < len(f) {
+		return strings.TrimSpace(f[i])
+	}
+	return ""
+}
+
+func lastNonEmpty(f []string) string {
+	for i := len(f) - 1; i >= 0; i-- {
+		if s := strings.TrimSpace(f[i]); s != "" {
+			return s
+		}
+	}
+	return ""
+}
+
+// synPrefix returns the leading letters of a synonym (HK008 -> "HK"), used to group
+// the parameter table by subsystem.
+func synPrefix(s string) string {
+	for i, r := range s {
+		if r >= '0' && r <= '9' {
+			return s[:i]
+		}
+	}
+	return s
+}

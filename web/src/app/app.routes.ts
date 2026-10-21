@@ -3,17 +3,20 @@ import { OverviewPage } from './pages/overview';
 import { TimeProgramsPage } from './pages/time-programs';
 import { HeatCurvePage } from './pages/heat-curve';
 import { InsightsPage } from './pages/insights';
+import { ParametersPage } from './pages/parameters';
 import { LoxonePage } from './pages/loxone';
 import { LogPage } from './pages/log';
 import { SettingsPage } from './pages/settings';
 
+// Route paths are English; the nav labels and page titles stay German (the UI is German).
 export const routes: Routes = [
   { path: '', component: OverviewPage, title: 'guntacontrol' },
-  { path: 'zeiten', component: TimeProgramsPage, title: 'Zeiten · guntacontrol' },
-  { path: 'heizkurve', component: HeatCurvePage, title: 'Heizkurve · guntacontrol' },
-  { path: 'auswertung', component: InsightsPage, title: 'Auswertung · guntacontrol' },
+  { path: 'schedule', component: TimeProgramsPage, title: 'Zeiten · guntacontrol' },
+  { path: 'heat-curve', component: HeatCurvePage, title: 'Heizkurve · guntacontrol' },
+  { path: 'insights', component: InsightsPage, title: 'Auswertung · guntacontrol' },
+  { path: 'parameters', component: ParametersPage, title: 'Parameter · guntacontrol' },
   { path: 'loxone', component: LoxonePage, title: 'Loxone · guntacontrol' },
-  { path: 'protokoll', component: LogPage, title: 'Protokoll · guntacontrol' },
-  { path: 'einstellungen', component: SettingsPage, title: 'Einstellungen · guntacontrol' },
+  { path: 'log', component: LogPage, title: 'Protokoll · guntacontrol' },
+  { path: 'settings', component: SettingsPage, title: 'Einstellungen · guntacontrol' },
   { path: '**', redirectTo: '' },
 ];

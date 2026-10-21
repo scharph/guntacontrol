@@ -9,12 +9,13 @@ type Theme = 'auto' | 'light' | 'dark';
 
 const NAV: { path: string; label: string; icon: string; exact?: boolean }[] = [
   { path: '/', label: 'Übersicht', icon: '◉', exact: true },
-  { path: '/zeiten', label: 'Zeiten', icon: '🕑' },
-  { path: '/heizkurve', label: 'Heizkurve', icon: '📉' },
-  { path: '/auswertung', label: 'Auswertung', icon: '📈' },
+  { path: '/schedule', label: 'Zeiten', icon: '🕑' },
+  { path: '/heat-curve', label: 'Heizkurve', icon: '📉' },
+  { path: '/insights', label: 'Auswertung', icon: '📈' },
+  { path: '/parameters', label: 'Parameter', icon: '🔧' },
   { path: '/loxone', label: 'Loxone', icon: '🏠' },
-  { path: '/protokoll', label: 'Protokoll', icon: '📝' },
-  { path: '/einstellungen', label: 'Einstellungen', icon: '⚙' },
+  { path: '/log', label: 'Protokoll', icon: '📝' },
+  { path: '/settings', label: 'Einstellungen', icon: '⚙' },
 ];
 
 /** App shell: sidebar navigation, sticky status header, the routed page and the toast. */

@@ -49,6 +49,22 @@ type Schedule struct {
 	Variants []ScheduleVariant `json:"variants"`
 }
 
+// ---- parameter table (par.cgi) ----
+
+// Param is one configurable parameter from par.cgi: its current value plus, for numeric
+// parameters, the allowed range. Kind drives how the UI renders it.
+type Param struct {
+	Syn     string `json:"syn"`
+	Label   string `json:"label"`
+	Kind    string `json:"kind"` // "number" | "enum" | "text"
+	Value   string `json:"value"`
+	Unit    string `json:"unit,omitempty"`
+	Min     string `json:"min,omitempty"`
+	Max     string `json:"max,omitempty"`
+	Default string `json:"default,omitempty"`
+	Group   string `json:"group"` // category derived from the synonym prefix
+}
+
 // ---- heating curve (Heizkurve) ----
 
 // HeatCurve is the configured weather-compensation curve of one heating circuit,

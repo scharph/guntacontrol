@@ -1,0 +1,37 @@
+:host { display: block; }
+
+.tools { display: flex; align-items: center; gap: 8px; }
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.filters input[type="search"] { width: 260px; max-width: 100%; }
+.count { font-size: 12.5px; font-variant-numeric: tabular-nums; }
+
+.card.scroll { padding: 0; overflow: auto; max-height: calc(100vh - 230px); }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 7px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 12px;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+td.r, th.r { text-align: right; font-variant-numeric: tabular-nums; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--surface-2); }
+
+.mono { font-family: var(--mono); font-size: 12px; }
+.val { font-weight: 600; white-space: nowrap; }
+.val .unit { color: var(--muted); font-weight: 400; }
+.limits { white-space: nowrap; }
+.empty { text-align: center; padding: 20px; }
+
+.note { font-size: 12px; margin-top: 12px; line-height: 1.5; }

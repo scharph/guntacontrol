@@ -126,6 +126,24 @@ export interface HeatCurvesResponse {
   curves: HeatCurve[];
 }
 
+// ---- Parameter table (par.cgi) ----
+
+export interface Param {
+  syn: string;
+  label: string;
+  kind: 'number' | 'enum' | 'text';
+  value: string;
+  unit?: string;
+  min?: string;
+  max?: string;
+  default?: string;
+  group: string;
+}
+
+export interface ParamsResponse {
+  params: Param[];
+}
+
 // ---- Audit (change log) ----
 
 export interface AuditEntry {

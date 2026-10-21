@@ -8,6 +8,7 @@ import {
   HistoryResponse,
   Insights,
   ParamAck,
+  ParamsResponse,
   SchedulesResponse,
   Snapshot,
 } from './models';
@@ -131,6 +132,12 @@ export class BoilerService {
 
   heatCurves(): Promise<HeatCurvesResponse> {
     return firstValueFrom(this.http.get<HeatCurvesResponse>('/api/heatcurve'));
+  }
+
+  // ---- Parameter table (par.cgi, read-only) ----
+
+  params(): Promise<ParamsResponse> {
+    return firstValueFrom(this.http.get<ParamsResponse>('/api/params'));
   }
 
   // ---- Audit (change log) ----

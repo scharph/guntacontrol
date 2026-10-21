@@ -12,6 +12,7 @@ Prometheus-Metriken, SQLite-Verlauf, Loxone-Anbindung und Audit-Log.
 - **Heizkurve** – je Heizkreis Steilheit/Parallelverschiebung/Vorlaufgrenzen plus gemessene
   Außen-↔-Vorlauf-Punktwolke (read-only).
 - **Auswertung** – Verlaufsdiagramme und Tagesstatistiken aus einer SQLite-Historie.
+- **Parameter** – Nur-Lese-Übersicht aller `par.cgi`-Parameter mit Wert und Grenzen.
 - **Loxone** – Klartext-HTTP-Endpunkte und optionaler UDP-Push (siehe [`loxone.md`](loxone.md)).
 - **Protokoll** – Audit-Log aller Änderungen (wer/wann/was/Ergebnis), in SQLite.
 - **Metriken** – `/metrics` im Prometheus-Format.

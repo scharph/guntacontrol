@@ -51,7 +51,7 @@
     @if (boiler.readOnly()) {
       <div class="banner warn topbanner">
         🔒 Schreibschutz aktiv – es werden keine Änderungen an den Kessel gesendet.
-        <a class="spacer-link" routerLink="/einstellungen">Ändern</a>
+        <a class="spacer-link" routerLink="/settings">Ändern</a>
       </div>
     } @else if (!boiler.allowWrite()) {
       <div class="banner err topbanner">Steuerung deaktiviert – in der Konfiguration ist <code>allowWrite: false</code>.</div>
