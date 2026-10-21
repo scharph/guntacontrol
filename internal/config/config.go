@@ -34,6 +34,13 @@ type Loxone struct {
 	UDP string `yaml:"udp" json:"udp"`
 }
 
+// Overview configures the dashboard (start page).
+type Overview struct {
+	// Circuits selects which heating circuits (0-based) are shown on the dashboard.
+	// Empty/unset shows all three.
+	Circuits []int `yaml:"circuits" json:"circuits"`
+}
+
 type Config struct {
 	Listen  string `yaml:"listen" json:"listen"`   // HTTP address of the UI and API
 	DataDir string `yaml:"dataDir" json:"dataDir"` // SQLite history + audit database
@@ -47,8 +54,9 @@ type Config struct {
 	AllowWrite bool `yaml:"allowWrite" json:"allowWrite"`
 	// ReadOnly is the user-facing write protection ("Schreibschutz"); UI-editable and
 	// persisted back to this file. Default: true (safe).
-	ReadOnly *bool  `yaml:"readOnly" json:"readOnly"`
-	Loxone   Loxone `yaml:"loxone" json:"loxone"`
+	ReadOnly *bool    `yaml:"readOnly" json:"readOnly"`
+	Loxone   Loxone   `yaml:"loxone" json:"loxone"`
+	Overview Overview `yaml:"overview" json:"overview"`
 }
 
 func (c *Config) applyDefaults() {
@@ -73,6 +81,9 @@ func (c *Config) applyDefaults() {
 	if c.ReadOnly == nil {
 		on := true
 		c.ReadOnly = &on
+	}
+	if c.Overview.Circuits == nil {
+		c.Overview.Circuits = []int{0, 1, 2}
 	}
 }
 
@@ -177,3 +188,6 @@ func (s *Store) SetReadOnly(on bool) error {
 	_, err := s.Update(func(c *Config) { c.ReadOnly = &on })
 	return err
 }
+
+// OverviewCircuits returns the heating circuits shown on the dashboard.
+func (s *Store) OverviewCircuits() []int { return s.Get().Overview.Circuits }

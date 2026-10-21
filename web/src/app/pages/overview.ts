@@ -26,7 +26,11 @@ export class OverviewPage {
   protected readonly PROGRAMS = PROGRAMS;
   protected readonly HK_PROGRAMS = HK_PROGRAMS;
   protected readonly TILES = TILES;
-  protected readonly CIRCUITS = CIRCUITS;
+
+  // Heating circuits to show, filtered by the server's overview.circuits config.
+  protected readonly circuits = computed(() =>
+    CIRCUITS.filter((c) => this.boiler.circuits().includes(c.index)),
+  );
 
   // The synonym currently being written (disables its controls + shows a spinner).
   protected readonly busy = signal<string | null>(null);

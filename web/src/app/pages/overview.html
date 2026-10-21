@@ -42,10 +42,11 @@
 </section>
 
 <!-- Heating circuits -->
+@if (circuits().length) {
 <section class="circuits">
   <h2>Heizkreise</h2>
   <div class="circuit-grid">
-    @for (c of CIRCUITS; track c.syn) {
+    @for (c of circuits(); track c.syn) {
       <div class="circuit">
         <div class="circuit-head">
           <span class="circuit-title">{{ c.title }}</span>
@@ -75,6 +76,7 @@
     }
   </div>
 </section>
+}
 
 <!-- All channels -->
 <section class="all">

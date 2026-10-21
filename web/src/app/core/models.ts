@@ -18,6 +18,8 @@ export interface Snapshot {
   readOnly: boolean;
   // Master capability: whether writes are permitted at all (allowWrite in the config).
   allowWrite: boolean;
+  // Heating circuits (0-based) the dashboard should show (overview.circuits in the config).
+  circuits?: number[];
 }
 
 export interface ParamAck {
@@ -163,6 +165,7 @@ export interface AuditResponse {
 
 // Definition of a heating circuit card (status + program control).
 export interface CircuitDef {
+  index: number; // 0-based circuit index, matched against overview.circuits
   title: string;
   syn: string; // parset synonym, e.g. HK001
   stateChannel: string; // string channel reflecting the live program

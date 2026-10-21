@@ -22,5 +22,8 @@ allowWrite: false
 # Write protection ("Schreibschutz"). true = read-only (safe). Toggled from the UI.
 readOnly: true
 
+overview:
+  circuits: [0, 1, 2]  # which heating circuits to show on the dashboard (empty = all)
+
 loxone:
   udp: ""              # push live values to a Loxone Miniserver (host:port), empty = off

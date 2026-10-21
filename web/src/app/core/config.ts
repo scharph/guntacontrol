@@ -37,9 +37,9 @@ export const TILES: TileDef[] = [
 ];
 
 export const CIRCUITS: CircuitDef[] = [
-  { title: 'Heizkreis 0', syn: 'HK001', stateChannel: 'Heizkreis 0', flowChannel: 'Vorlauf Ist 0' },
-  { title: 'Heizkreis 1', syn: 'HK101', stateChannel: 'Heizkreis 1', flowChannel: 'Vorlauf Ist 1' },
-  { title: 'Heizkreis 2', syn: 'HK201', stateChannel: 'Heizkreis 2', flowChannel: 'Vorlauf Ist 2' },
+  { index: 0, title: 'Heizkreis 0', syn: 'HK001', stateChannel: 'Heizkreis 0', flowChannel: 'Vorlauf Ist 0' },
+  { index: 1, title: 'Heizkreis 1', syn: 'HK101', stateChannel: 'Heizkreis 1', flowChannel: 'Vorlauf Ist 1' },
+  { index: 2, title: 'Heizkreis 2', syn: 'HK201', stateChannel: 'Heizkreis 2', flowChannel: 'Vorlauf Ist 2' },
 ];
 
 // Channel that carries the live main program as text (daqdesc id 70).

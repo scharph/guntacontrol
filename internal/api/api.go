@@ -42,6 +42,8 @@ type SettingsStore interface {
 	ReadOnly() bool
 	// SetReadOnly persists the write-protection toggle.
 	SetReadOnly(on bool) error
+	// OverviewCircuits lists the heating circuits (0-based) shown on the dashboard.
+	OverviewCircuits() []int
 }
 
 // Server wires the poller, the SQLite-backed history/audit stores and the embedded UI
@@ -256,8 +258,9 @@ func (s *Server) channelUnits() map[string]string {
 // write-protection state the UI needs to gate its controls.
 type valuesResponse struct {
 	boiler.Snapshot
-	ReadOnly   bool `json:"readOnly"`
-	AllowWrite bool `json:"allowWrite"`
+	ReadOnly   bool  `json:"readOnly"`
+	AllowWrite bool  `json:"allowWrite"`
+	Circuits   []int `json:"circuits"`
 }
 
 func (s *Server) handleValues(w http.ResponseWriter, r *http.Request) {
@@ -265,6 +268,7 @@ func (s *Server) handleValues(w http.ResponseWriter, r *http.Request) {
 		Snapshot:   s.poller.Snapshot(),
 		ReadOnly:   s.settings.ReadOnly(),
 		AllowWrite: s.settings.AllowWrite(),
+		Circuits:   s.settings.OverviewCircuits(),
 	})
 }
 
