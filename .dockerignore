@@ -8,8 +8,7 @@ data
 *.db-shm
 *.gob
 *.log
-guntamatic-state.json
-state.json
+guntacontrol.yaml
 guntamatic.exe
 guntacontrol
 *.exe

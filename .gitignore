@@ -1,5 +1,8 @@
 # --- secrets / personal data (never commit) ---
 .env
+# the live config holds the boiler key; the example stays tracked
+/guntacontrol.yaml
+/guntacontrol.yaml.tmp
 # customer documents & keys (root-anchored so web/ assets stay tracked)
 /*.pdf
 /*.html
@@ -15,8 +18,6 @@
 *.db-wal
 *.db-shm
 *.gob
-guntamatic-state.json
-state.json
 guntacontrol.db
 
 # --- build output, deps, binaries ---

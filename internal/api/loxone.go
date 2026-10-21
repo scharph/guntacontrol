@@ -35,7 +35,7 @@ func (s *Server) handleLoxoneStatus(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "online=%d\n", online)
 	fmt.Fprintf(w, "updated=%d\n", snap.Updated.Unix())
 	ro := 0
-	if s.readOnly.Load() {
+	if s.settings.ReadOnly() {
 		ro = 1
 	}
 	fmt.Fprintf(w, "readonly=%d\n", ro)
@@ -74,11 +74,11 @@ func (s *Server) handleLoxoneSet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "ERR: need ?syn=<synonym>&value=<v>", http.StatusBadRequest)
 		return
 	}
-	if !s.allowWrite {
-		http.Error(w, "ERR: writes disabled; start with -allow-write", http.StatusForbidden)
+	if !s.settings.AllowWrite() {
+		http.Error(w, "ERR: Schreiben ist deaktiviert (allowWrite: false)", http.StatusForbidden)
 		return
 	}
-	if s.readOnly.Load() {
+	if s.settings.ReadOnly() {
 		http.Error(w, "ERR: Schreibschutz aktiv", http.StatusForbidden)
 		return
 	}

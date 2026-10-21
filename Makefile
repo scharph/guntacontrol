@@ -15,8 +15,9 @@ test:
 	go test ./...
 
 # server with embedded UI on http://localhost:8080 (needs `make web` first)
+# reads ./guntacontrol.yaml (copy from guntacontrol.example.yaml)
 run: server
-	bin/guntacontrol -allow-write
+	bin/guntacontrol
 
 # Angular dev server with live reload (proxies /api to :8080)
 dev:

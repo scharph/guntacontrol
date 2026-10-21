@@ -34,7 +34,7 @@
       <a class="banner-link" routerLink="/einstellungen">In den Einstellungen ändern</a>
     </div>
   } @else if (!boiler.allowWrite()) {
-    <div class="banner err">Steuerung deaktiviert – Server ohne <code>-allow-write</code> gestartet.</div>
+    <div class="banner err">Steuerung deaktiviert – in der Konfiguration ist <code>allowWrite: false</code>.</div>
   }
 
   <router-outlet />

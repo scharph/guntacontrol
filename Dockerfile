@@ -27,7 +27,7 @@ ENV TZ=Europe/Vienna
 EXPOSE 8080
 VOLUME /data
 # starts as root only to fix /data ownership, then drops to user "gunta".
-# The UI is embedded in the binary (no -webroot); history + audit live in SQLite
-# under /data. All logs go to stdout — no local log files are written.
+# The UI is embedded in the binary; history + audit live in SQLite under /data, and
+# the YAML config lives at /data/guntacontrol.yaml. All logs go to stdout.
 ENTRYPOINT ["docker-entrypoint.sh"]
-CMD ["guntacontrol", "-addr", ":8080", "-db", "/data/guntacontrol.db", "-state", "/data/state.json"]
+CMD ["guntacontrol", "-config", "/data/guntacontrol.yaml"]

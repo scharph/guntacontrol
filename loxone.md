@@ -12,25 +12,25 @@ optional einen UDP-Push.
 
 ---
 
-## 1. Server starten
+## 1. Server konfigurieren
 
-```bash
-guntacontrol -key <KEY> -write-key <KEY> -allow-write \
-  -loxone-udp <MINISERVER>:7000
+Alles steht in `guntacontrol.yaml` (Vorlage: `guntacontrol.example.yaml`); Start dann
+einfach mit `guntacontrol` (oder per Docker Compose, siehe `README`/`docker-compose.yml`).
+
+```yaml
+device:
+  host: <KESSEL-IP>
+  writeKey: <KEY>        # nötig zum Schalten
+allowWrite: true         # ohne das sind alle Schreibbefehle gesperrt
+loxone:
+  udp: <MINISERVER>:7000 # optionaler UDP-Push (siehe 3); weglassen = nur HTTP-Polling
 ```
 
-(oder per Docker Compose, siehe `README`/`docker-compose.yml`.)
+Das Web-UI ist ins Programm eingebettet; Verlauf und Audit-Log liegen in der
+SQLite-DB im `dataDir` (`guntacontrol.db`).
 
-| Flag | Zweck |
-|------|-------|
-| `-allow-write` | **nötig zum Schalten.** Ohne das sind alle Schreibbefehle gesperrt. |
-| `-loxone-udp <MINISERVER>:7000` | optionaler UDP-Push (siehe 3). Weglassen = nur HTTP-Polling. |
-
-Das Web-UI ist ins Programm eingebettet (kein `-webroot` nötig); Verlauf und
-Audit-Log liegen in der SQLite-DB (`-db`, Standard `guntacontrol.db`).
-
-Zusätzlich muss der **Schreibschutz** aus sein (in der Web-App unter ⚙ → Sicherheit,
-oder von Beginn an durch `-allow-write`). Bei aktivem Schreibschutz liefert jeder
+Zusätzlich muss der **Schreibschutz** aus sein (in der Web-App unter ⚙ → Sicherheit;
+`readOnly` in der Konfiguration). Bei aktivem Schreibschutz liefert jeder
 Schreibbefehl `ERR: Schreibschutz aktiv`.
 
 ---
@@ -73,14 +73,14 @@ Ein einziges Auslesen füllt so beliebig viele Eingänge – effizient.
 
 ## 3. Werte lesen – Virtueller UDP Eingang (Push, empfohlen bei vielen Werten)
 
-Mit `-loxone-udp <MINISERVER>:7000` schickt der Server bei **jedem Poll** dieselben
+Mit `loxone.udp: <MINISERVER>:7000` schickt der Server bei **jedem Poll** dieselben
 `Schlüssel=Wert`-Zeilen als UDP-Datagramme an den Miniserver. Kein Polling nötig,
 geringere Last.
 
 ### Einrichtung in Loxone Config
 
 1. Peripherie → **Virtueller UDP Eingang** anlegen.
-   - **Empfangsport:** `7000` (muss zum `-loxone-udp`-Port passen).
+   - **Empfangsport:** `7000` (muss zum `loxone.udp`-Port passen).
 2. Pro Wert einen **Befehl** mit Befehlserkennung `Schlüssel=` anlegen – genau wie
    beim HTTP-Eingang (Abschnitt 2).
 
@@ -217,9 +217,9 @@ Vollständige Liste live unter `http://<SERVER>/loxone`.
 
 | Problem | Ursache / Lösung |
 |---------|------------------|
-| `ERR: writes disabled; start with -allow-write` | Server ohne `-allow-write` gestartet. |
+| `ERR: Schreiben ist deaktiviert (allowWrite: false)` | In der Konfiguration `allowWrite: true` setzen. |
 | `ERR: Schreibschutz aktiv` | Schreibschutz in der Web-App (⚙ → Sicherheit) deaktivieren. |
 | `ERR: ... Parameter konnte nicht gespeichert werden!` | Ungültiger Wert/Synonym – Wertebereich prüfen (Tabellen oben). |
 | Loxone liest keine Werte | Befehlserkennung muss den Schlüssel **inkl. `=`** enthalten (z. B. `Kesseltemperatur=`); Groß-/Kleinschreibung beachten. |
-| UDP kommt nicht an | Port in `-loxone-udp` und im Virtuellen UDP Eingang müssen gleich sein; Firewall prüfen. |
+| UDP kommt nicht an | Port in `loxone.udp` und im Virtuellen UDP Eingang müssen gleich sein; Firewall prüfen. |
 | Umlaute im Schlüssel | Schlüssel sind ASCII-gefaltet: `Außentemperatur` → `Aussentemperatur`, „Puffer oben" → `Pufferoben`. Immer die Schreibweise aus `/loxone` verwenden. |

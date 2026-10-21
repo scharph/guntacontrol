@@ -16,7 +16,7 @@ export interface Snapshot {
   values: ChannelValue[];
   // Server-level write protection (Schreibschutz) state, mirrored to gate the UI.
   readOnly: boolean;
-  // Master capability: whether writes are permitted at all (server started -allow-write).
+  // Master capability: whether writes are permitted at all (allowWrite in the config).
   allowWrite: boolean;
 }
 

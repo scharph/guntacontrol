@@ -7,16 +7,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"log"
 	"net"
 	"net/http"
-	"os"
 	"path"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"guntacontrol/internal/boiler"
@@ -34,17 +31,23 @@ type ScheduleReader interface {
 	Schedules(ctx context.Context) ([]boiler.Schedule, error)
 }
 
+// SettingsStore exposes the write-protection settings, backed by the YAML config.
+type SettingsStore interface {
+	// AllowWrite is the master capability: when false, writes are impossible and the
+	// read-only toggle can never be disabled.
+	AllowWrite() bool
+	// ReadOnly is the user-facing write protection ("Schreibschutz").
+	ReadOnly() bool
+	// SetReadOnly persists the write-protection toggle.
+	SetReadOnly(on bool) error
+}
+
 // Server wires the poller, the SQLite-backed history/audit stores and the embedded UI
 // into the HTTP surface.
 type Server struct {
-	poller *service.Poller
-	param  ParamWriter
-	// allowWrite is the master capability: when false, writes are impossible and the
-	// read-only toggle cannot be disabled.
-	allowWrite bool
-	// readOnly is the user-facing write protection ("Schreibschutz"), persisted.
-	readOnly  atomic.Bool
-	statePath string
+	poller   *service.Poller
+	param    ParamWriter
+	settings SettingsStore
 	// webFS is the embedded single-page app served at / with history-API fallback.
 	webFS   fs.FS
 	history *store.History
@@ -54,15 +57,15 @@ type Server struct {
 
 // NewServer builds the HTTP server from its collaborators. history, sched, audit and
 // webFS may be nil to disable the corresponding features.
-func NewServer(p *service.Poller, param ParamWriter, sched ScheduleReader, history *store.History, audit *store.AuditLog, webFS fs.FS, allowWrite bool) *Server {
+func NewServer(p *service.Poller, param ParamWriter, sched ScheduleReader, history *store.History, audit *store.AuditLog, webFS fs.FS, settings SettingsStore) *Server {
 	return &Server{
-		poller:     p,
-		param:      param,
-		sched:      sched,
-		history:    history,
-		audit:      audit,
-		webFS:      webFS,
-		allowWrite: allowWrite,
+		poller:   p,
+		param:    param,
+		sched:    sched,
+		history:  history,
+		audit:    audit,
+		webFS:    webFS,
+		settings: settings,
 	}
 }
 
@@ -98,48 +101,15 @@ func (s *Server) record(e store.AuditEntry) {
 	}
 }
 
-// persistedState is the on-disk settings file.
-type persistedState struct {
-	ReadOnly bool `json:"readOnly"`
-}
+func (s *Server) IsReadOnly() bool { return s.settings.ReadOnly() }
 
-// InitState sets where write-protection is persisted and the initial read-only state.
-// A persisted value wins over initialReadOnly.
-func (s *Server) InitState(statePath string, initialReadOnly bool) {
-	s.statePath = statePath
-	s.readOnly.Store(initialReadOnly)
-	if statePath == "" {
-		return
-	}
-	data, err := os.ReadFile(statePath)
-	if err != nil {
-		return // no file yet: keep initialReadOnly
-	}
-	var st persistedState
-	if err := json.Unmarshal(data, &st); err != nil {
-		log.Printf("state: ignoring unreadable %s: %v", statePath, err)
-		return
-	}
-	s.readOnly.Store(st.ReadOnly)
-}
-
-func (s *Server) IsReadOnly() bool { return s.readOnly.Load() }
-
-// setReadOnly updates the write protection and persists it. Enabling is always allowed;
-// disabling requires the write capability.
+// setReadOnly updates the write protection and persists it to the config. Enabling is
+// always allowed; disabling requires the master write capability.
 func (s *Server) setReadOnly(on bool) error {
-	if !on && !s.allowWrite {
-		return fmt.Errorf("writes disabled at startup; restart with -allow-write")
+	if !on && !s.settings.AllowWrite() {
+		return fmt.Errorf("Schreiben ist deaktiviert (allowWrite: false in der Konfiguration)")
 	}
-	s.readOnly.Store(on)
-	if s.statePath == "" {
-		return nil
-	}
-	data, _ := json.Marshal(persistedState{ReadOnly: on})
-	if err := os.WriteFile(s.statePath, data, 0o600); err != nil {
-		log.Printf("state: could not persist %s: %v", s.statePath, err)
-	}
-	return nil
+	return s.settings.SetReadOnly(on)
 }
 
 func (s *Server) Routes() http.Handler {
@@ -261,8 +231,8 @@ type valuesResponse struct {
 func (s *Server) handleValues(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, valuesResponse{
 		Snapshot:   s.poller.Snapshot(),
-		ReadOnly:   s.readOnly.Load(),
-		AllowWrite: s.allowWrite,
+		ReadOnly:   s.settings.ReadOnly(),
+		AllowWrite: s.settings.AllowWrite(),
 	})
 }
 
@@ -300,8 +270,8 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{
-		"readOnly":   s.readOnly.Load(),
-		"allowWrite": s.allowWrite,
+		"readOnly":   s.settings.ReadOnly(),
+		"allowWrite": s.settings.AllowWrite(),
 	})
 }
 
@@ -351,11 +321,11 @@ func (s *Server) handleParam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) writeAllowed(w http.ResponseWriter) bool {
-	if !s.allowWrite {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "writes disabled; start with -allow-write"})
+	if !s.settings.AllowWrite() {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "Schreiben ist deaktiviert (allowWrite: false in der Konfiguration)"})
 		return false
 	}
-	if s.readOnly.Load() {
+	if s.settings.ReadOnly() {
 		writeJSON(w, http.StatusForbidden, map[string]string{"error": "Schreibschutz aktiv – in den Einstellungen deaktivieren"})
 		return false
 	}

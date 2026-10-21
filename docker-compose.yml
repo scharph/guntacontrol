@@ -5,26 +5,12 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      # SQLite history + audit + the write-protection state live here (persistent).
+      # Config (guntacontrol.yaml), SQLite history + audit all live here (persistent).
+      # Copy guntacontrol.example.yaml to ./data/guntacontrol.yaml and set the boiler
+      # host + writeKey there; the UI rewrites it when you toggle the Schreibschutz.
       - ./data:/data
     environment:
-      # Write/control key for the Flex (reads are open on the local network, so no
-      # separate read key is needed). Put the real value in a .env file next to this
-      # compose file; never commit it.
-      GUNTAMATIC_WRITE_KEY: ${GUNTAMATIC_WRITE_KEY}
       # Boiler clock / timestamps are local time.
       TZ: Europe/Vienna
-    # Default command is monitoring-only (safe). To allow control from the app/Loxone,
-    # uncomment the line below (keeps the embedded UI and /data paths from the image).
-    # To push live values to a Loxone Miniserver, append: -loxone-udp 192.168.0.10:7000
-    command:
-      - guntacontrol
-      - -addr
-      - ":8080"
-      - -host
-      - "192.168.0.69"
-      - -db
-      - /data/guntacontrol.db
-      - -state
-      - /data/state.json
-      # - -allow-write
+      # Optional: a write key here is used only if writeKey is left empty in the YAML.
+      # GUNTAMATIC_WRITE_KEY: ${GUNTAMATIC_WRITE_KEY}

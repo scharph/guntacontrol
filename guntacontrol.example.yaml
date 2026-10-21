@@ -1,0 +1,26 @@
+# guntacontrol configuration.
+#
+# Copy this file to guntacontrol.yaml and adjust it. readOnly can also be toggled
+# from the web UI (Einstellungen), which rewrites this file. Keep the real file out
+# of git (it holds the boiler key) — it is gitignored by default.
+
+listen: ":8080"        # HTTP address of the web UI and API
+dataDir: data          # SQLite database (Auswertung history + audit log)
+
+device:
+  host: 192.168.0.69   # boiler IP or hostname on the local network
+  # key: ""            # read key — leave empty, reads are open on the Flex
+  writeKey: ""         # Level-1 key, required only for control/writing
+  timeoutSeconds: 8    # per-request timeout to the boiler
+
+pollSeconds: 10        # live refresh interval (minimum 5)
+retentionDays: 35      # how long history samples are kept
+
+# Safety: with allowWrite false, nothing can ever be written to the boiler and the
+# Schreibschutz below cannot be turned off. Set it true to permit control at all.
+allowWrite: false
+# Write protection ("Schreibschutz"). true = read-only (safe). Toggled from the UI.
+readOnly: true
+
+loxone:
+  udp: ""              # push live values to a Loxone Miniserver (host:port), empty = off

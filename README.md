@@ -20,37 +20,47 @@ SQLite-Datei. Alle Logs gehen nach stdout.
 ## Schnellstart (Docker)
 
 ```bash
-cp .env.example .env     # Kessel-Schlüssel eintragen
+mkdir -p data
+cp guntacontrol.example.yaml data/guntacontrol.yaml   # Host + writeKey eintragen
 docker compose up -d --build
 # -> http://localhost:8080
 ```
 
-Steuerung aktivieren: in `docker-compose.yml` die Zeile `# - -allow-write`
-einkommentieren (der Schreibschutz lässt sich dann im UI unter ⚙ ausschalten).
+Steuerung aktivieren: in `data/guntacontrol.yaml` `allowWrite: true` setzen
+(der Schreibschutz lässt sich dann im UI unter ⚙ ausschalten).
 
 ## Ohne Docker
 
 ```bash
-cd web && npx ng build && cd ..     # UI bauen (wird eingebettet)
-go build -o guntacontrol .
-./guntacontrol -key $GUNTAMATIC_KEY -write-key $GUNTAMATIC_KEY -allow-write
+cd web && npx ng build && cd ..            # UI bauen (wird eingebettet)
+go build -o guntacontrol ./cmd/guntacontrol
+cp guntacontrol.example.yaml guntacontrol.yaml   # anpassen
+./guntacontrol                              # liest ./guntacontrol.yaml
 ```
 
 Details zum Web-UI in [`web/README.md`](web/README.md), zur Loxone-Anbindung in
 [`loxone.md`](loxone.md).
 
-## Konfiguration (Flags)
+## Konfiguration (YAML)
 
-| Flag | Default | Zweck |
-|------|---------|-------|
-| `-host` | `192.168.0.69` | Kessel-IP |
-| `-key` | `$GUNTAMATIC_KEY` | Lese-Key (bei der Flex optional) |
-| `-write-key` | `$GUNTAMATIC_WRITE_KEY` | Key zum Steuern |
-| `-allow-write` | aus | Steuern erlauben (startet mit Schreibschutz AUS) |
-| `-addr` | `:8080` | Listen-Adresse |
-| `-interval` | `10s` | Poll-Intervall |
-| `-db` | `guntacontrol.db` | SQLite (Verlauf + Audit) |
-| `-retention` | `35 Tage` | Aufbewahrung der Verlaufsdaten |
-| `-loxone-udp` | – | UDP-Push an einen Loxone Miniserver (`host:port`) |
+Alle Einstellungen stehen in `guntacontrol.yaml` (Vorlage: `guntacontrol.example.yaml`);
+es gibt keine Einzel-Flags mehr. Nur `--config <datei>`, `--data <verzeichnis>` und
+`--version` existieren noch als Kommandozeilen-Optionen.
 
-Der Schlüssel wird nie im Repo gespeichert – lokal via `.env` (siehe `.env.example`).
+| Schlüssel | Default | Zweck |
+|-----------|---------|-------|
+| `listen` | `:8080` | Listen-Adresse |
+| `dataDir` | `data` | SQLite-Verzeichnis (Verlauf + Audit) |
+| `device.host` | `192.168.0.69` | Kessel-IP |
+| `device.key` | – | Lese-Key (bei der Flex optional, meist leer) |
+| `device.writeKey` | – | Key zum Steuern |
+| `device.timeoutSeconds` | `8` | Timeout je Anfrage an den Kessel |
+| `pollSeconds` | `10` | Poll-Intervall (min. 5) |
+| `retentionDays` | `35` | Aufbewahrung der Verlaufsdaten |
+| `allowWrite` | `false` | Steuern überhaupt erlauben |
+| `readOnly` | `true` | Schreibschutz (im UI umschaltbar, wird zurückgeschrieben) |
+| `loxone.udp` | – | UDP-Push an einen Loxone Miniserver (`host:port`) |
+
+Der Schlüssel wird nie im Repo gespeichert: `guntacontrol.yaml` ist gitignored.
+Alternativ füllt die Umgebungsvariable `GUNTAMATIC_WRITE_KEY` den Key, falls
+`device.writeKey` leer bleibt (siehe `.env.example`).

@@ -57,7 +57,7 @@ func NewFlexBackend(host, key, writeKey string, timeout time.Duration) *FlexBack
 // Control requires the write key; reads do not. Returns the device's ack text.
 func (b *FlexBackend) SetParam(ctx context.Context, syn, value string) (string, error) {
 	if b.writeKey == "" {
-		return "", fmt.Errorf("no write key set (pass -write-key / GUNTAMATIC_WRITE_KEY)")
+		return "", fmt.Errorf("kein Write-Key gesetzt (device.writeKey in der Konfiguration)")
 	}
 	q := url.Values{"key": {b.writeKey}, "syn": {syn}, "value": {value}}
 	u := b.baseURL + "/ext/parset.cgi?" + q.Encode()
