@@ -1,4 +1,4 @@
-package main
+package store
 
 import (
 	"database/sql"
@@ -7,11 +7,13 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"guntacontrol/internal/boiler"
 )
 
-// historyChannels are the numeric daqdata channels recorded for the Auswertung
-// (evaluation). Order is fixed: each sample stores values in this order.
-var historyChannels = []string{
+// HistoryChannels are the numeric daqdata channels recorded for the Auswertung.
+// Order is fixed: each in-memory sample stores values in this order.
+var HistoryChannels = []string{
 	"Aussentemperatur",
 	"Kesseltemperatur",
 	"Puffer oben",
@@ -25,17 +27,15 @@ var historyChannels = []string{
 // the boiler is considered to be firing while its modulation is above zero.
 const runningChannel = "Leistung"
 
-// sample is one recorded poll: a timestamp and the recorded channel values in
-// historyChannels order (NaN marks a value that was absent or non-numeric).
+// sample is one recorded poll in HistoryChannels order (NaN marks absent values).
 type sample struct {
 	T time.Time
 	V []float64
 }
 
-// History is a continuous time series backed by SQLite (table "samples"), like
-// heliocontrol's. For fast chart/insight computation it also keeps the retention
-// window in an in-memory ring, loaded from the database on start and kept in sync on
-// every Add. The database is the durable store; the ring is just a cache.
+// History is a continuous time series backed by SQLite (table "samples"). For fast
+// chart/insight computation it also keeps the retention window in an in-memory ring,
+// loaded from the database on start and kept in sync on every Add.
 type History struct {
 	mu        sync.RWMutex
 	interval  time.Duration
@@ -46,8 +46,8 @@ type History struct {
 }
 
 func NewHistory(db *sql.DB, interval, retention time.Duration) *History {
-	idx := make(map[string]int, len(historyChannels))
-	for i, c := range historyChannels {
+	idx := make(map[string]int, len(HistoryChannels))
+	for i, c := range HistoryChannels {
 		idx[c] = i
 	}
 	h := &History{
@@ -60,11 +60,10 @@ func NewHistory(db *sql.DB, interval, retention time.Duration) *History {
 	return h
 }
 
-// Add records one poll's values. Only historyChannels are kept, as float64 (bool
-// EIN/AUS becomes 1/0). Non-numeric/absent channels are skipped. Rows go to SQLite and
-// the in-memory ring; the ring is pruned to the retention window.
-func (h *History) Add(ts time.Time, vals []Value) {
-	row := make([]float64, len(historyChannels))
+// Add records one poll's values. Only HistoryChannels are kept, as float64 (bool
+// EIN/AUS becomes 1/0). Rows go to SQLite and the in-memory ring.
+func (h *History) Add(ts time.Time, vals []boiler.Value) {
+	row := make([]float64, len(HistoryChannels))
 	for i := range row {
 		row[i] = math.NaN()
 	}
@@ -120,7 +119,7 @@ func (h *History) persist(ts time.Time, row []float64) {
 		if math.IsNaN(v) {
 			continue
 		}
-		if _, err := stmt.Exec(ms, historyChannels[i], v); err != nil {
+		if _, err := stmt.Exec(ms, HistoryChannels[i], v); err != nil {
 			stmt.Close()
 			tx.Rollback()
 			log.Printf("history: insert failed: %v", err)
@@ -148,8 +147,7 @@ type Series struct {
 	Points  []Point `json:"points"`
 }
 
-// Range returns up to maxPoints per channel over [from, to], bucket-averaged so the
-// chart stays light regardless of range.
+// Range returns up to maxPoints per channel over [from, to], bucket-averaged.
 func (h *History) Range(from, to time.Time, channels []string, maxPoints int, units map[string]string) []Series {
 	if maxPoints <= 0 {
 		maxPoints = 500
@@ -206,7 +204,6 @@ func (h *History) Range(from, to time.Time, channels []string, maxPoints int, un
 }
 
 func sortPoints(p []Point) {
-	// small slices; insertion sort keeps it dependency-light
 	for i := 1; i < len(p); i++ {
 		for j := i; j > 0 && p[j-1].X > p[j].X; j-- {
 			p[j-1], p[j] = p[j], p[j-1]
@@ -266,8 +263,7 @@ func (h *History) Insights(days int) Insights {
 	return out
 }
 
-// stale caps how long one sample's value is trusted when the next is missing
-// (server was presumably down); beyond it the gap is not counted as coverage.
+// stale caps how long one sample's value is trusted when the next is missing.
 func (h *History) stale() time.Duration {
 	s := 3*h.interval + time.Minute
 	if s < 2*time.Minute {
@@ -303,7 +299,6 @@ func (h *History) dayInsight(from, to time.Time) DayInsight {
 		within = append(within, s)
 	}
 	for i, s := range within {
-		// segment from this sample until the next (clamped to `to` and stale).
 		segEnd := to
 		if i+1 < len(within) {
 			if within[i+1].T.Before(segEnd) {
@@ -374,7 +369,6 @@ func (h *History) dayInsight(from, to time.Time) DayInsight {
 
 func (h *History) hints(days []DayInsight) []Hint {
 	hints := []Hint{}
-	// Look at the most recent days that actually have data.
 	var recent []DayInsight
 	for i := len(days) - 1; i >= 0 && len(recent) < 7; i-- {
 		if days[i].Coverage > 0 {
@@ -390,7 +384,6 @@ func (h *History) hints(days []DayInsight) []Hint {
 		return hints
 	}
 
-	// Short cycling: many starts with short average cycle on the latest full-ish day.
 	for _, d := range recent {
 		if d.Coverage >= 0.5 && d.Starts != nil && *d.Starts >= 10 && d.AvgCycleMin != nil && *d.AvgCycleMin < 20 {
 			hints = append(hints, Hint{
@@ -402,7 +395,6 @@ func (h *History) hints(days []DayInsight) []Hint {
 		}
 	}
 
-	// Low coverage on the most recent day.
 	if recent[0].Coverage < 0.5 {
 		hints = append(hints, Hint{
 			Level:  "info",
@@ -423,8 +415,7 @@ func (h *History) hints(days []DayInsight) []Hint {
 
 // ---- persistence (SQLite) ----
 
-// load reads the retention window from SQLite into the in-memory ring. Rows are read
-// ordered by timestamp and regrouped into columnar samples (one per distinct ts).
+// load reads the retention window from SQLite into the in-memory ring.
 func (h *History) load() {
 	if h.db == nil {
 		return
@@ -450,7 +441,7 @@ func (h *History) load() {
 			return
 		}
 		if ms != curMs {
-			row := make([]float64, len(historyChannels))
+			row := make([]float64, len(HistoryChannels))
 			for i := range row {
 				row[i] = math.NaN()
 			}

@@ -1,0 +1,16 @@
+:host { display: block; }
+
+.head { margin-bottom: 12px; }
+.head h2 { font-size: 20px; font-weight: 700; }
+
+.card {
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+.check { display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+.hint { color: var(--muted); font-size: 13px; margin-top: 10px; }
+.hint.warn { color: #8a6300; }
+.hint code { background: #eceff2; padding: 1px 5px; border-radius: 4px; }

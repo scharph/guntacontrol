@@ -15,7 +15,7 @@ COPY . .
 # Bring in the freshly built UI so //go:embed in web/embed.go finds dist/web/browser.
 COPY --from=web /src/web/dist ./web/dist
 ARG VERSION=dev
-RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/guntacontrol .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/guntacontrol ./cmd/guntacontrol
 
 # --- runtime -----------------------------------------------------------------
 FROM alpine:3.22

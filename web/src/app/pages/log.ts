@@ -1,13 +1,13 @@
 import { Component, inject, signal } from '@angular/core';
-import { BoilerService } from './boiler.service';
-import { AuditEntry } from './models';
+import { BoilerService } from '../core/api';
+import { AuditEntry } from '../core/models';
 
 @Component({
-  selector: 'app-audit-log',
-  templateUrl: './audit-log.html',
-  styleUrl: './audit-log.scss',
+  selector: 'app-log',
+  templateUrl: './log.html',
+  styleUrl: './log.scss',
 })
-export class AuditLogPage {
+export class LogPage {
   private readonly boiler = inject(BoilerService);
 
   protected readonly entries = signal<AuditEntry[]>([]);

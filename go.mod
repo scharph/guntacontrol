@@ -1,4 +1,4 @@
-module guntamatic
+module guntacontrol
 
 go 1.27
 

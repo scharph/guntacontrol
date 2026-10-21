@@ -1,4 +1,6 @@
-package main
+// Package api exposes the polled boiler data over a small HTTP API, a Prometheus-style
+// metrics endpoint and the embedded web UI, and accepts control writes.
+package api
 
 import (
 	"context"
@@ -16,42 +18,52 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"guntacontrol/internal/boiler"
+	"guntacontrol/internal/service"
+	"guntacontrol/internal/store"
 )
 
-// paramWriter writes a parameter by synonym.
-type paramWriter interface {
+// ParamWriter writes a parameter by synonym.
+type ParamWriter interface {
 	SetParam(ctx context.Context, syn, value string) (string, error)
 }
 
-// scheduleReader reads the device's time programs ("Uhrenprogramme") via par.cgi.
-type scheduleReader interface {
-	Schedules(ctx context.Context) ([]Schedule, error)
+// ScheduleReader reads the device's time programs ("Uhrenprogramme") via par.cgi.
+type ScheduleReader interface {
+	Schedules(ctx context.Context) ([]boiler.Schedule, error)
 }
 
-// Server exposes the polled boiler data over a small HTTP API plus a Prometheus-style
-// metrics endpoint and the embedded web UI.
+// Server wires the poller, the SQLite-backed history/audit stores and the embedded UI
+// into the HTTP surface.
 type Server struct {
-	poller *Poller
-	param  paramWriter
+	poller *service.Poller
+	param  ParamWriter
 	// allowWrite is the master capability: when false, writes are impossible and the
-	// read-only toggle cannot be disabled (no write key / not permitted at startup).
+	// read-only toggle cannot be disabled.
 	allowWrite bool
-	// readOnly is the user-facing write protection ("Schreibschutz"). It defaults to
-	// enabled (safe) and, like Heliotherm's read-only mode, refuses every control
-	// command until the user disables it in the settings. It is persisted so the
-	// choice survives restarts.
-	readOnly atomic.Bool
-	// statePath is where readOnly is persisted as JSON; empty disables persistence.
+	// readOnly is the user-facing write protection ("Schreibschutz"), persisted.
+	readOnly  atomic.Bool
 	statePath string
-	// webFS, if set, is the embedded single-page app served at / with history-API
-	// fallback. When nil, / serves the built-in status table.
-	webFS fs.FS
-	// history, if set, backs the Auswertung endpoints (/api/history, /api/insights).
-	history *History
-	// sched, if set, serves the device's time programs at /api/schedules (flex only).
-	sched scheduleReader
-	// audit, if set, records every parameter/setting change (who, when, what, result).
-	audit *AuditLog
+	// webFS is the embedded single-page app served at / with history-API fallback.
+	webFS   fs.FS
+	history *store.History
+	sched   ScheduleReader
+	audit   *store.AuditLog
+}
+
+// NewServer builds the HTTP server from its collaborators. history, sched, audit and
+// webFS may be nil to disable the corresponding features.
+func NewServer(p *service.Poller, param ParamWriter, sched ScheduleReader, history *store.History, audit *store.AuditLog, webFS fs.FS, allowWrite bool) *Server {
+	return &Server{
+		poller:     p,
+		param:      param,
+		sched:      sched,
+		history:    history,
+		audit:      audit,
+		webFS:      webFS,
+		allowWrite: allowWrite,
+	}
 }
 
 // clientIP extracts the caller's address for the audit log, honouring a single
@@ -80,14 +92,10 @@ func actor(r *http.Request, def string) string {
 }
 
 // record writes an audit entry if auditing is enabled.
-func (s *Server) record(e AuditEntry) {
+func (s *Server) record(e store.AuditEntry) {
 	if s.audit != nil {
 		s.audit.Record(e)
 	}
-}
-
-func NewServer(p *Poller, param paramWriter, allowWrite bool) *Server {
-	return &Server{poller: p, param: param, allowWrite: allowWrite}
 }
 
 // persistedState is the on-disk settings file.
@@ -96,8 +104,7 @@ type persistedState struct {
 }
 
 // InitState sets where write-protection is persisted and the initial read-only state.
-// A persisted value wins over initialReadOnly; when no file exists, initialReadOnly is
-// used (callers pass true for a safe default unless -allow-write requested otherwise).
+// A persisted value wins over initialReadOnly.
 func (s *Server) InitState(statePath string, initialReadOnly bool) {
 	s.statePath = statePath
 	s.readOnly.Store(initialReadOnly)
@@ -118,8 +125,8 @@ func (s *Server) InitState(statePath string, initialReadOnly bool) {
 
 func (s *Server) IsReadOnly() bool { return s.readOnly.Load() }
 
-// setReadOnly updates the write protection and persists it. Enabling (true) is always
-// allowed; disabling requires the write capability.
+// setReadOnly updates the write protection and persists it. Enabling is always allowed;
+// disabling requires the write capability.
 func (s *Server) setReadOnly(on bool) error {
 	if !on && !s.allowWrite {
 		return fmt.Errorf("writes disabled at startup; restart with -allow-write")
@@ -172,7 +179,7 @@ func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
 			to = time.UnixMilli(ms)
 		}
 	}
-	channels := historyChannels
+	channels := store.HistoryChannels
 	if v := q.Get("channels"); v != "" {
 		channels = strings.Split(v, ",")
 	}
@@ -205,12 +212,10 @@ func (s *Server) handleInsights(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.history.Insights(days))
 }
 
-// handleSchedules returns the decoded time programs ("Uhrenprogramme"), read-only:
-//
-//	GET /api/schedules -> {"schedules":[{title,kind,variants:[{id,label,days:[...]}]}]}
+// handleSchedules returns the decoded time programs ("Uhrenprogramme"), read-only.
 func (s *Server) handleSchedules(w http.ResponseWriter, r *http.Request) {
 	if s.sched == nil {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Zeitprogramme nur mit dem flex-Backend verfügbar"})
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Zeitprogramme nicht verfügbar"})
 		return
 	}
 	schedules, err := s.sched.Schedules(r.Context())
@@ -248,7 +253,7 @@ func (s *Server) channelUnits() map[string]string {
 // valuesResponse is the /api/values body: the device snapshot plus the server-level
 // write-protection state the UI needs to gate its controls.
 type valuesResponse struct {
-	Snapshot
+	boiler.Snapshot
 	ReadOnly   bool `json:"readOnly"`
 	AllowWrite bool `json:"allowWrite"`
 }
@@ -263,7 +268,7 @@ func (s *Server) handleValues(w http.ResponseWriter, r *http.Request) {
 
 // handleSettings reads or updates server settings.
 //
-//	GET  /api/settings            -> {"readOnly":bool,"allowWrite":bool}
+//	GET  /api/settings             -> {"readOnly":bool,"allowWrite":bool}
 //	POST /api/settings {readOnly}  -> same, after applying the change
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
@@ -278,7 +283,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		err := s.setReadOnly(*body.ReadOnly)
-		entry := AuditEntry{
+		entry := store.AuditEntry{
 			Who: clientIP(r), Via: actor(r, "api"), Action: "settings",
 			Target: "readOnly", Value: strconv.FormatBool(*body.ReadOnly),
 		}
@@ -330,7 +335,7 @@ func (s *Server) handleParam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ack, err := s.param.SetParam(r.Context(), body.Syn, body.Value)
-	entry := AuditEntry{
+	entry := store.AuditEntry{
 		Who: clientIP(r), Via: actor(r, "api"), Action: "param",
 		Target: body.Syn, Value: body.Value,
 	}
@@ -399,9 +404,8 @@ func sanitize(name string) string {
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	// When a SPA webroot is configured, "/" catches every non-API path: serve the
-	// requested static file if it exists, otherwise fall back to index.html so the
-	// client-side app can route.
+	// With an embedded UI, "/" catches every non-API path: serve the requested static
+	// file if it exists, otherwise fall back to index.html so the client app can route.
 	if s.webFS != nil {
 		s.serveSPA(w, r)
 		return
@@ -411,15 +415,15 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	snap := s.poller.Snapshot()
-	vals := append([]Value(nil), snap.Values...)
+	vals := append([]boiler.Value(nil), snap.Values...)
 	sort.Slice(vals, func(i, j int) bool { return vals[i].Name < vals[j].Name })
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="5">`)
-	fmt.Fprintf(w, `<title>Guntamatic</title><style>body{font:14px system-ui;margin:2rem;max-width:720px}`)
+	fmt.Fprintf(w, `<title>guntacontrol</title><style>body{font:14px system-ui;margin:2rem;max-width:720px}`)
 	fmt.Fprintf(w, `table{border-collapse:collapse;width:100%%}td,th{border-bottom:1px solid #ddd;padding:4px 8px;text-align:left}`)
 	fmt.Fprintf(w, `td.v{text-align:right;font-variant-numeric:tabular-nums}.err{color:#b00}</style>`)
-	fmt.Fprintf(w, `<h1>Guntamatic Biostar</h1>`)
+	fmt.Fprintf(w, `<h1>guntacontrol</h1>`)
 	if snap.Err != "" {
 		fmt.Fprintf(w, `<p class="err">Poll error: %s</p>`, htmlEscape(snap.Err))
 	}
@@ -433,8 +437,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 // serveSPA serves static files from the embedded UI, falling back to index.html for
-// paths that do not map to a real file (client-side routes). path.Clean plus fs.FS
-// semantics reject traversal.
+// paths that do not map to a real file. path.Clean plus fs.FS semantics reject traversal.
 func (s *Server) serveSPA(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
 	if name == "" {

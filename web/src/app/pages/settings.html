@@ -1,0 +1,19 @@
+<div class="head">
+  <h2>Einstellungen · Sicherheit</h2>
+</div>
+
+<section class="card">
+  <label class="check">
+    <input type="checkbox" [checked]="boiler.readOnly()" [disabled]="!boiler.allowWrite()"
+      (change)="toggleReadOnly()" />
+    <span><strong>Schreibschutz</strong> – nichts an den Kessel schreiben</span>
+  </label>
+  <p class="hint">
+    Ist der Schreibschutz aktiv, bleiben alle Steuerelemente gesperrt und es werden keine
+    Befehle gesendet. Ausschalten erfordert eine Bestätigung. Die Einstellung bleibt über
+    Neustarts erhalten.
+  </p>
+  @if (!boiler.allowWrite()) {
+    <p class="hint warn">Der Server wurde ohne <code>-allow-write</code> gestartet – der Schreibschutz lässt sich nicht deaktivieren.</p>
+  }
+</section>

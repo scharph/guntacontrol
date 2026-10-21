@@ -1,12 +1,7 @@
-// Command guntamatic is a small HTTP server that polls a Guntamatic Biostar boiler's
-// WEB-Schnittstelle (HTTP/JSON interface on TCP 80) and re-exposes the live data as a
-// JSON API, a Prometheus /metrics endpoint, and a plain status page. It can also write
-// boiler parameters (controller program, boiler release, heating circuits, ...) when
-// started with -allow-write.
-//
-// The boiler requires an access key ("Schlüssel") that Guntamatic derives from the
-// boiler's Systemcode; its length sets the permission level (W0..W3). Pass it via
-// -key or the GUNTAMATIC_KEY environment variable. Never hard-code it.
+// Command guntacontrol polls a Guntamatic Biostar Flex over its local HTTP API and
+// re-exposes the live data as a JSON API, a Prometheus /metrics endpoint, an embedded
+// web UI and a Loxone-friendly plain-text interface. It can also write boiler
+// parameters when started with -allow-write.
 package main
 
 import (
@@ -18,8 +13,15 @@ import (
 	"os/signal"
 	"time"
 
-	"guntamatic/web"
+	"guntacontrol/internal/api"
+	"guntacontrol/internal/device"
+	"guntacontrol/internal/loxone"
+	"guntacontrol/internal/service"
+	"guntacontrol/internal/store"
+	"guntacontrol/web"
 )
+
+var version = "dev"
 
 func main() {
 	var (
@@ -31,37 +33,28 @@ func main() {
 		timeout  = flag.Duration("timeout", 8*time.Second, "per-request timeout to the boiler")
 		allowW   = flag.Bool("allow-write", false, "permit writes at all; also starts with write protection OFF")
 		state    = flag.String("state", "guntamatic-state.json", "file persisting the write-protection toggle (empty = no persistence)")
-		dbFile   = flag.String("db", "guntamatic.db", "SQLite database for the Auswertung history and the audit log")
+		dbFile   = flag.String("db", "guntacontrol.db", "SQLite database for the Auswertung history and the audit log")
 		retain   = flag.Duration("retention", 35*24*time.Hour, "how long to keep history samples")
 		loxUDP   = flag.String("loxone-udp", "", "push values to a Loxone Miniserver as UDP (host:port, e.g. 192.168.0.10:7000; empty = off)")
 	)
 	flag.Parse()
 
-	// The Flex local CSV API serves reads without a key; the write key is only needed
-	// for control (/api/param).
-	fb := NewFlexBackend(*host, *key, *writeKey, *timeout)
-	var (
-		src   Source         = fb
-		param paramWriter    = fb
-		sched scheduleReader = fb
-	)
-
-	poller := NewPoller(src, *interval)
+	fb := device.NewFlexBackend(*host, *key, *writeKey, *timeout)
+	poller := service.NewPoller(fb, *interval)
 
 	// Shared SQLite database backs both the Auswertung history and the audit log.
-	db, err := OpenDB(*dbFile)
+	db, err := store.OpenDB(*dbFile)
 	if err != nil {
 		log.Fatalf("open database %s: %v", *dbFile, err)
 	}
 	defer db.Close()
 
-	// Continuous history powers the Auswertung (evaluation) endpoints.
-	hist := NewHistory(db, *interval, *retain)
+	hist := store.NewHistory(db, *interval, *retain)
 	poller.AddSink(hist)
 
 	// Optional UDP push to a Loxone Miniserver on every poll.
 	if *loxUDP != "" {
-		if u, err := NewLoxoneUDP(*loxUDP); err != nil {
+		if u, err := loxone.NewUDP(*loxUDP); err != nil {
 			log.Printf("loxone-udp: disabled (%v)", err)
 		} else {
 			poller.AddSink(u)
@@ -69,13 +62,9 @@ func main() {
 		}
 	}
 
-	audit := NewAuditLog(db)
+	audit := store.NewAuditLog(db)
 
-	srv := NewServer(poller, param, *allowW)
-	srv.webFS = web.FS()
-	srv.history = hist
-	srv.sched = sched
-	srv.audit = audit
+	srv := api.NewServer(poller, fb, fb, hist, audit, web.FS(), *allowW)
 	// Write protection defaults to ON (safe); -allow-write starts it OFF. A persisted
 	// value from a previous run overrides this initial choice.
 	srv.InitState(*state, !*allowW)
@@ -99,8 +88,8 @@ func main() {
 		_ = httpSrv.Shutdown(shutCtx)
 	}()
 
-	log.Printf("guntacontrol on %s -> boiler %s (poll %s, write=%v)",
-		*addr, *host, *interval, *allowW)
+	log.Printf("guntacontrol %s on %s -> boiler %s (poll %s, write=%v)",
+		version, *addr, *host, *interval, *allowW)
 	if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}

@@ -1,0 +1,52 @@
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">⬢</span>
+      <div>
+        <h1>guntacontrol</h1>
+        <p class="sub">Flex 23&nbsp;kW · lokale Steuerung</p>
+      </div>
+    </div>
+    <div class="status">
+      <span class="dot" [class.online]="boiler.online()" [class.offline]="!boiler.online()"></span>
+      @if (boiler.online()) { <span>Online</span> } @else { <span>Offline</span> }
+      @if (boiler.loading()) { <span class="spin" aria-label="lädt"></span> }
+      @if (boiler.readOnly()) { <span class="lock" title="Schreibschutz aktiv">🔒</span> }
+      <a class="gear" routerLink="/einstellungen" routerLinkActive="active" aria-label="Einstellungen">⚙</a>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Übersicht</a>
+    <a routerLink="/zeiten" routerLinkActive="active">Zeiten</a>
+    <a routerLink="/auswertung" routerLinkActive="active">Auswertung</a>
+    <a routerLink="/loxone" routerLinkActive="active">Loxone</a>
+    <a routerLink="/protokoll" routerLinkActive="active">Protokoll</a>
+  </nav>
+
+  @if (boiler.error()) {
+    <div class="banner err">⚠️ {{ boiler.error() }}</div>
+  }
+
+  @if (boiler.readOnly()) {
+    <div class="banner ro">
+      🔒 Schreibschutz aktiv – es werden keine Änderungen an den Kessel gesendet.
+      <a class="banner-link" routerLink="/einstellungen">In den Einstellungen ändern</a>
+    </div>
+  } @else if (!boiler.allowWrite()) {
+    <div class="banner err">Steuerung deaktiviert – Server ohne <code>-allow-write</code> gestartet.</div>
+  }
+
+  <router-outlet />
+
+  <footer>
+    <span>Aktualisiert: {{ boiler.updated() ? (boiler.updated() | date:'HH:mm:ss') : '—' }}</span>
+    <span>· Poll alle {{ pollSeconds }} s</span>
+  </footer>
+
+  @if (toasts.toast(); as t) {
+    <div class="toast" [class.ok]="t.kind === 'ok'" [class.err]="t.kind === 'err'">
+      {{ t.text }}
+    </div>
+  }
+</div>

@@ -1,4 +1,5 @@
-package main
+// Package device talks to the Guntamatic Biostar Flex over its modern local CSV API.
+package device
 
 import (
 	"bufio"
@@ -12,18 +13,19 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"guntacontrol/internal/boiler"
 )
 
-// FlexBackend implements Source over the modern Guntamatic firmware's local CSV API
-// (confirmed on a Biostar Flex, Software 3.3d). Unlike the older /ext/*.cgi JSON
-// interface, this one serves:
+// FlexBackend implements the data source over the modern Guntamatic firmware's local
+// CSV API (confirmed on a Biostar Flex, Software 3.3d):
 //
 //	GET /daqdesc.cgi   ->  one "Name;Unit" line per channel (ISO-8859-1)
 //	GET /daqdata.cgi   ->  one value line per channel, same order
 //
-// Reading needs no key on the local network; the device's Sicherheitsschlüssel
-// (Kundenebene → App → Schlüssel) is only required for control/write requests. The
-// key is still sent when configured, in case a firmware variant gates reads.
+// Reading needs no key on the local network; the device's Sicherheitsschlüssel is only
+// required for control/write requests. The key is still sent when configured, in case a
+// firmware variant gates reads.
 type FlexBackend struct {
 	baseURL  string
 	key      string // read key; not required by this firmware (reads are open)
@@ -51,12 +53,7 @@ func NewFlexBackend(host, key, writeKey string, timeout time.Duration) *FlexBack
 }
 
 // SetParam writes a control parameter via /ext/parset.cgi, using the synonyms from the
-// boiler's own par.cgi table, e.g.:
-//
-//	PR001 (Programm):    0=AUS 1=NORMAL 2=WARMWASSER 3=HEIZEN 4=ABSENKEN … 8=HANDBETRIEB
-//	HK001/HK101/HK201…:  Heizkreis 0/1/2 program  0=AUS 1=NORMAL 2=HEIZEN 3=ABSENKEN
-//	HK004/HK005:         Solltemp. Tag/Nacht (°C) for HK0
-//
+// boiler's own par.cgi table (e.g. PR001 Programm, HK001/HK101/HK201 Heizkreise).
 // Control requires the write key; reads do not. Returns the device's ack text.
 func (b *FlexBackend) SetParam(ctx context.Context, syn, value string) (string, error) {
 	if b.writeKey == "" {
@@ -149,7 +146,8 @@ func (b *FlexBackend) ensureDesc(ctx context.Context) error {
 	return nil
 }
 
-func (b *FlexBackend) Poll(ctx context.Context) ([]Value, error) {
+// Poll fetches the current channel values.
+func (b *FlexBackend) Poll(ctx context.Context) ([]boiler.Value, error) {
 	if err := b.ensureDesc(ctx); err != nil {
 		return nil, err
 	}
@@ -157,12 +155,12 @@ func (b *FlexBackend) Poll(ctx context.Context) ([]Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := make([]Value, 0, len(b.names))
+	out := make([]boiler.Value, 0, len(b.names))
 	for i, name := range b.names {
 		if name == "" || strings.EqualFold(name, "reserved") {
 			continue // skip padding/reserved channels
 		}
-		v := Value{ID: i, Name: name, Unit: b.units[i]}
+		v := boiler.Value{ID: i, Name: name, Unit: b.units[i]}
 		if i < len(data) {
 			v.Type, v.Value = classify(strings.TrimSpace(data[i]))
 		}

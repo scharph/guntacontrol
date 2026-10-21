@@ -20,6 +20,7 @@ state.json
 guntacontrol.db
 
 # --- build output, deps, binaries ---
+/bin/
 web/node_modules/
 web/dist/
 web/.angular/

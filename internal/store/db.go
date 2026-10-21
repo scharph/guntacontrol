@@ -1,4 +1,6 @@
-package main
+// Package store persists the Auswertung history and the audit log in a shared SQLite
+// database (pure-Go driver, no cgo).
+package store
 
 import (
 	"database/sql"
@@ -6,10 +8,9 @@ import (
 	_ "modernc.org/sqlite" // pure-Go SQLite driver, registered as "sqlite"
 )
 
-// OpenDB opens (creating if needed) the shared SQLite database that backs both the
-// Auswertung history and the audit log, and ensures the schema exists. WAL mode keeps
-// reads non-blocking against the poller's writes; a busy timeout avoids "database is
-// locked" under brief contention.
+// OpenDB opens (creating if needed) the shared SQLite database and ensures the schema
+// exists. WAL keeps reads non-blocking against the poller's writes; a busy timeout
+// avoids "database is locked" under brief contention.
 func OpenDB(path string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite", path)
 	if err != nil {

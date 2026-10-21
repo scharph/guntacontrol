@@ -1,23 +1,16 @@
-package main
+package api
 
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
+
+	"guntacontrol/internal/loxone"
+	"guntacontrol/internal/store"
 )
 
-// Loxone integration.
-//
-// The Loxone Miniserver talks to third-party devices over plain HTTP, not JSON:
-//   - "Virtueller HTTP Eingang" (Virtual HTTP Input) polls a URL and extracts values
-//     by a start-marker string, so it wants a flat "Key=Value" text body.
-//   - "Virtueller Ausgang" (Virtual Output) fires a GET URL with the value spliced in
-//     via the <v> placeholder, so writes must be simple GET requests with a plain reply.
-//
-// These endpoints provide exactly that, on top of the same poller and parameter writer
-// the JSON API uses. Writes honour the same gate as /api/param (needs -allow-write and
-// the Schreibschutz turned off).
+// Loxone integration: a plain-text HTTP surface for the Loxone Miniserver (it does not
+// do JSON/POST easily).
 //
 //	GET /loxone/status            -> text/plain, one "Key=Value" line per channel + meta
 //	GET /loxone/get?name=<key>    -> the bare value of one channel (e.g. "72.4")
@@ -29,41 +22,6 @@ func (s *Server) registerLoxone(mux *http.ServeMux) {
 	mux.HandleFunc("/loxone/status", s.handleLoxoneStatus)
 	mux.HandleFunc("/loxone/get", s.handleLoxoneGet)
 	mux.HandleFunc("/loxone/set", s.handleLoxoneSet)
-}
-
-// loxoneKey turns a channel name into a stable ASCII marker for Loxone start strings,
-// folding German umlauts and dropping non-alphanumerics: "Puffer oben" -> "PufferOben",
-// "Warmwasser 0" -> "Warmwasser0".
-func loxoneKey(name string) string {
-	repl := strings.NewReplacer(
-		"ä", "ae", "ö", "oe", "ü", "ue", "Ä", "Ae", "Ö", "Oe", "Ü", "Ue", "ß", "ss",
-	)
-	var b strings.Builder
-	for _, r := range repl.Replace(name) {
-		switch {
-		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
-}
-
-// loxoneValue renders a channel value as plain text Loxone can parse: numbers as-is,
-// booleans as 1/0, strings verbatim.
-func loxoneValue(v any) string {
-	switch x := v.(type) {
-	case float64:
-		return strconv.FormatFloat(x, 'f', -1, 64)
-	case bool:
-		if x {
-			return "1"
-		}
-		return "0"
-	case nil:
-		return ""
-	default:
-		return fmt.Sprintf("%v", x)
-	}
 }
 
 func (s *Server) handleLoxoneStatus(w http.ResponseWriter, r *http.Request) {
@@ -83,11 +41,11 @@ func (s *Server) handleLoxoneStatus(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "readonly=%d\n", ro)
 
 	for _, v := range snap.Values {
-		key := loxoneKey(v.Name)
+		key := loxone.Key(v.Name)
 		if key == "" {
 			continue
 		}
-		fmt.Fprintf(w, "%s=%s\n", key, loxoneValue(v.Value))
+		fmt.Fprintf(w, "%s=%s\n", key, loxone.Value(v.Value))
 	}
 }
 
@@ -100,8 +58,8 @@ func (s *Server) handleLoxoneGet(w http.ResponseWriter, r *http.Request) {
 	}
 	want := strings.ToLower(name)
 	for _, v := range s.poller.Snapshot().Values {
-		if strings.EqualFold(v.Name, name) || strings.ToLower(loxoneKey(v.Name)) == want {
-			fmt.Fprint(w, loxoneValue(v.Value))
+		if strings.EqualFold(v.Name, name) || strings.ToLower(loxone.Key(v.Name)) == want {
+			fmt.Fprint(w, loxone.Value(v.Value))
 			return
 		}
 	}
@@ -125,11 +83,11 @@ func (s *Server) handleLoxoneSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.param == nil {
-		http.Error(w, "ERR: parameter writes need the flex/http backend", http.StatusBadRequest)
+		http.Error(w, "ERR: no parameter writer configured", http.StatusBadRequest)
 		return
 	}
 	ack, err := s.param.SetParam(r.Context(), syn, value)
-	entry := AuditEntry{
+	entry := store.AuditEntry{
 		Who: clientIP(r), Via: "loxone", Action: "param", Target: syn, Value: value,
 	}
 	if err != nil {
@@ -158,7 +116,7 @@ func (s *Server) handleLoxoneHelp(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "  http://%s/loxone/set?syn=HK001&value=<v>   Heizkreis 0 (0=AUS 1=NORMAL 2=HEIZEN 3=ABSENKEN)\n\n", host)
 	fmt.Fprintf(w, "Live channel keys (copy as Loxone start marker, incl. the '='):\n")
 	for _, v := range s.poller.Snapshot().Values {
-		key := loxoneKey(v.Name)
+		key := loxone.Key(v.Name)
 		if key == "" {
 			continue
 		}
@@ -166,6 +124,6 @@ func (s *Server) handleLoxoneHelp(w http.ResponseWriter, r *http.Request) {
 		if v.Unit != "" {
 			unit = " [" + v.Unit + "]"
 		}
-		fmt.Fprintf(w, "  %s=%s%s   (%s)\n", key, loxoneValue(v.Value), unit, v.Name)
+		fmt.Fprintf(w, "  %s=%s%s   (%s)\n", key, loxone.Value(v.Value), unit, v.Name)
 	}
 }

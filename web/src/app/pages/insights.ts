@@ -1,8 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import { BoilerService } from './boiler.service';
-import { DayInsight, HistSeries, Insights } from './models';
-import { ChartSeries, TimeChart } from './time-chart';
+import { BoilerService } from '../core/api';
+import { DayInsight, HistSeries, Insights } from '../core/models';
+import { ChartSeries, TimeChart } from '../ui/time-chart';
 
 interface ChartDef {
   channel: string;

@@ -1,5 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
-import { BoilerService } from './boiler.service';
+import { BoilerService } from '../core/api';
 
 /** Mirrors the server's loxoneKey(): fold umlauts, drop non-alphanumerics. */
 function loxKey(name: string): string {
@@ -22,11 +22,11 @@ interface Mode {
 }
 
 @Component({
-  selector: 'app-loxone-help',
-  templateUrl: './loxone-help.html',
-  styleUrl: './loxone-help.scss',
+  selector: 'app-loxone',
+  templateUrl: './loxone.html',
+  styleUrl: './loxone.scss',
 })
-export class LoxoneHelp {
+export class LoxonePage {
   protected readonly boiler = inject(BoilerService);
 
   /** Server base the browser reached guntacontrol on, used in copy-ready URLs. */

@@ -1,66 +1,35 @@
-package main
+package device
 
 import (
 	"context"
 	"strconv"
 	"strings"
+
+	"guntacontrol/internal/boiler"
 )
 
-// Time programs ("Uhrenprogramme") on the Guntamatic Flex are exposed through par.cgi
-// as type-9 parameters. Each encodes a full week as 7 days of 9 integers:
+// Time programs ("Uhrenprogramme") are exposed through par.cgi as type-9 parameters.
+// Each encodes a full week as 7 days of 9 integers:
 //
 //	[start1, start2, start3, end1, end2, end3, 0, 0, 0]
 //
 // i.e. up to three heating/charging windows per day, as minutes since midnight
 // (360 = 06:00, 1320 = 22:00). A window is active when end > start; zeros mean unused.
-// Verified against HK003/HK003b/HK003c, BK002/BK003 and ZK002 on firmware 3.3d.
-//
-// Heating circuits additionally carry three weather variants (Witterung): the base
-// synonym is "Normal/cold", "…b" is "mild" and "…c" is "warm".
-
-// TimeWindow is one active interval of a day, in minutes since midnight.
-type TimeWindow struct {
-	Start int `json:"start"`
-	End   int `json:"end"`
-}
-
-// DaySchedule is the list of active windows for one weekday.
-type DaySchedule struct {
-	Day     string       `json:"day"`
-	Windows []TimeWindow `json:"windows"`
-}
-
-// ScheduleVariant is one time program (one par.cgi synonym), e.g. the "mild" weather
-// variant of a heating circuit.
-type ScheduleVariant struct {
-	ID    string        `json:"id"`
-	Label string        `json:"label"`
-	Days  []DaySchedule `json:"days"`
-}
-
-// Schedule groups the variants that belong to one circuit / hot-water program.
-type Schedule struct {
-	Title    string            `json:"title"`
-	Kind     string            `json:"kind"` // "heating" | "water" | "circulation"
-	Variants []ScheduleVariant `json:"variants"`
-}
+// Heating circuits carry three weather variants (base = Normal/cold, "…b" = mild,
+// "…c" = warm).
 
 // weekdays follows the controller's Monday-first order.
 var weekdays = []string{"Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"}
 
-// variantSpec describes one par.cgi synonym to surface and the label to show for it.
 type variantSpec struct{ id, label string }
 
-// scheduleSpec describes one logical schedule and the synonyms making up its variants.
 type scheduleSpec struct {
 	title    string
 	kind     string
 	variants []variantSpec
 }
 
-// scheduleSpecs lists, in display order, the time programs we surface. Heating circuits
-// 0–2 match the app's circuit tiles; Warmwasser and its circulation round it out. An
-// entry is only emitted when the device actually reports that synonym.
+// scheduleSpecs lists, in display order, the time programs we surface.
 var scheduleSpecs = []scheduleSpec{
 	{"Heizkreis 0", "heating", []variantSpec{{"HK003", "Normal"}, {"HK003b", "mild"}, {"HK003c", "warm"}}},
 	{"Heizkreis 1", "heating", []variantSpec{{"HK103", "Normal"}, {"HK103b", "mild"}, {"HK103c", "warm"}}},
@@ -88,15 +57,15 @@ func parseParamInts(line string) (id string, ok bool, vals []int) {
 }
 
 // decodeClockProgram turns the 7×9 integer block into per-day active windows.
-func decodeClockProgram(vals []int) []DaySchedule {
-	days := make([]DaySchedule, len(weekdays))
+func decodeClockProgram(vals []int) []boiler.DaySchedule {
+	days := make([]boiler.DaySchedule, len(weekdays))
 	for d := range weekdays {
 		base := d * 9
-		day := DaySchedule{Day: weekdays[d], Windows: []TimeWindow{}}
+		day := boiler.DaySchedule{Day: weekdays[d], Windows: []boiler.TimeWindow{}}
 		for i := 0; i < 3; i++ {
 			start, end := vals[base+i], vals[base+3+i]
 			if end > start { // zeros / unset slots collapse away
-				day.Windows = append(day.Windows, TimeWindow{Start: start, End: end})
+				day.Windows = append(day.Windows, boiler.TimeWindow{Start: start, End: end})
 			}
 		}
 		days[d] = day
@@ -105,30 +74,30 @@ func decodeClockProgram(vals []int) []DaySchedule {
 }
 
 // buildSchedules decodes the configured schedules from a par.cgi parameter map.
-func buildSchedules(params map[string][]int) []Schedule {
-	var out []Schedule
+func buildSchedules(params map[string][]int) []boiler.Schedule {
+	var out []boiler.Schedule
 	for _, spec := range scheduleSpecs {
-		var variants []ScheduleVariant
+		var variants []boiler.ScheduleVariant
 		for _, v := range spec.variants {
 			vals, ok := params[v.id]
 			if !ok {
 				continue
 			}
-			variants = append(variants, ScheduleVariant{
+			variants = append(variants, boiler.ScheduleVariant{
 				ID:    v.id,
 				Label: v.label,
 				Days:  decodeClockProgram(vals),
 			})
 		}
 		if len(variants) > 0 {
-			out = append(out, Schedule{Title: spec.title, Kind: spec.kind, Variants: variants})
+			out = append(out, boiler.Schedule{Title: spec.title, Kind: spec.kind, Variants: variants})
 		}
 	}
 	return out
 }
 
 // Schedules fetches par.cgi and returns the decoded time programs. It is read-only.
-func (b *FlexBackend) Schedules(ctx context.Context) ([]Schedule, error) {
+func (b *FlexBackend) Schedules(ctx context.Context) ([]boiler.Schedule, error) {
 	lines, err := b.get(ctx, "/par.cgi")
 	if err != nil {
 		return nil, err

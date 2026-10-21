@@ -1,0 +1,97 @@
+<!-- Hero: current program + mode selector -->
+<section class="hero">
+  <div class="hero-head">
+    <div>
+      <p class="hero-label">Betriebsmodus</p>
+      <p class="hero-value">{{ activeProgram()?.label || programText() || '–' }}</p>
+    </div>
+    <div class="hero-meta">
+      <span>{{ boiler.text('Betrieb') || '—' }}</span>
+      @if (boiler.num('Leistung') != null) {
+        <span>{{ boiler.num('Leistung') | number:'1.0-0' }} % Leistung</span>
+      }
+    </div>
+  </div>
+
+  <div class="modes">
+    @for (m of PROGRAMS; track m.value) {
+      <button
+        class="mode"
+        [class.active]="activeProgram()?.value === m.value"
+        [disabled]="busy() === 'PR001' || !boiler.canWrite()"
+        (click)="setProgram(m.value)">
+        {{ m.label }}
+      </button>
+    }
+  </div>
+</section>
+
+<!-- Sensor tiles -->
+<section class="tiles">
+  @for (t of TILES; track t.channel) {
+    <div class="tile">
+      <div class="tile-top">
+        <span class="tile-icon">{{ t.icon }}</span>
+        <span class="tile-label">{{ t.label }}</span>
+      </div>
+      <div class="tile-value" [style.color]="t.accent">
+        {{ tileValue(t.channel) }}<span class="tile-unit">{{ tileUnit(t.channel) }}</span>
+      </div>
+    </div>
+  }
+</section>
+
+<!-- Heating circuits -->
+<section class="circuits">
+  <h2>Heizkreise</h2>
+  <div class="circuit-grid">
+    @for (c of CIRCUITS; track c.syn) {
+      <div class="circuit">
+        <div class="circuit-head">
+          <span class="circuit-title">{{ c.title }}</span>
+          <span class="circuit-flow">
+            @if (boiler.num(c.flowChannel) != null) {
+              {{ boiler.num(c.flowChannel) | number:'1.1-1' }} °C
+            } @else { — }
+          </span>
+        </div>
+        <div class="circuit-state">
+          <span class="badge" [class.on]="circuitActive(c.stateChannel)">
+            {{ circuitActive(c.stateChannel) ? 'Aktiv' : 'Aus' }}
+          </span>
+          <span class="circuit-hint">Programm setzen:</span>
+        </div>
+        <div class="seg">
+          @for (m of HK_PROGRAMS; track m.value) {
+            <button
+              class="seg-btn"
+              [disabled]="busy() === c.syn || !boiler.canWrite()"
+              (click)="setCircuit(c.syn, m.value)">
+              {{ m.label }}
+            </button>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</section>
+
+<!-- All channels -->
+<section class="all">
+  <button class="link" (click)="toggleAll()">
+    {{ showAll() ? '▾ Alle Kanäle ausblenden' : '▸ Alle Kanäle anzeigen' }} ({{ boiler.values().length }})
+  </button>
+  @if (showAll()) {
+    <table>
+      <thead><tr><th>Kanal</th><th class="r">Wert</th></tr></thead>
+      <tbody>
+        @for (v of boiler.values(); track v.id) {
+          <tr>
+            <td>{{ v.name }}</td>
+            <td class="r">{{ formatValue(v.value, v.unit) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</section>

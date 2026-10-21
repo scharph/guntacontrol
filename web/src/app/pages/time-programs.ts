@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { BoilerService } from './boiler.service';
-import { DaySchedule, Schedule, ScheduleVariant, TimeWindow } from './models';
+import { BoilerService } from '../core/api';
+import { DaySchedule, Schedule, ScheduleVariant, TimeWindow } from '../core/models';
 
 const KIND_ICON: Record<string, string> = {
   heating: '🔥',
@@ -9,11 +9,11 @@ const KIND_ICON: Record<string, string> = {
 };
 
 @Component({
-  selector: 'app-schedule',
-  templateUrl: './schedule.html',
-  styleUrl: './schedule.scss',
+  selector: 'app-time-programs',
+  templateUrl: './time-programs.html',
+  styleUrl: './time-programs.scss',
 })
-export class SchedulePage {
+export class TimeProgramsPage {
   private readonly boiler = inject(BoilerService);
 
   protected readonly schedules = signal<Schedule[]>([]);
