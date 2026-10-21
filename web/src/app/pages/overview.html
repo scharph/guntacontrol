@@ -66,6 +66,7 @@
           @for (m of HK_PROGRAMS; track m.value) {
             <button
               class="seg-btn"
+              [class.active]="circuitProgram(c.index) === m.value"
               [disabled]="busy() === c.syn || !boiler.canWrite()"
               (click)="setCircuit(c.syn, m.value)">
               {{ m.label }}

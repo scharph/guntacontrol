@@ -22,6 +22,8 @@ export interface Snapshot {
   circuits?: number[];
   // User-set circuit names from the boiler (HKx11), keyed by circuit index as a string.
   circuitNames?: Record<string, string>;
+  // Current program per circuit (HKx01), keyed by circuit index as a string.
+  circuitPrograms?: Record<string, number>;
 }
 
 export interface ParamAck {

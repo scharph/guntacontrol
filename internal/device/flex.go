@@ -49,8 +49,9 @@ type FlexBackend struct {
 
 // circuitInfo bundles the heating-circuit metadata read from one par.cgi fetch.
 type circuitInfo struct {
-	names  map[int]string // HKx11 custom names (non-empty only)
-	active []int          // 0-based indices with HPx02 != "Kein"
+	names    map[int]string // HKx11 custom names (non-empty only)
+	active   []int          // 0-based indices with HPx02 != "Kein"
+	programs map[int]int    // HKx01 current program per circuit
 }
 
 // circuitInfoTTL is how long cached circuit metadata is reused before par.cgi is read
@@ -75,12 +76,33 @@ func (b *FlexBackend) circuitInfoCached(ctx context.Context) (*circuitInfo, erro
 		b.infoMu.Unlock()
 		return ci, err
 	}
-	ci := &circuitInfo{names: parseCircuitNames(lines), active: parseActiveCircuits(lines)}
+	ci := &circuitInfo{
+		names:    parseCircuitNames(lines),
+		active:   parseActiveCircuits(lines),
+		programs: parseCircuitPrograms(lines),
+	}
 	b.infoMu.Lock()
 	b.info = ci
 	b.infoAt = time.Now()
 	b.infoMu.Unlock()
 	return ci, nil
+}
+
+// invalidateCircuitInfo drops the cached circuit metadata so the next read re-fetches
+// par.cgi. Called after a successful write so the UI reflects the change immediately.
+func (b *FlexBackend) invalidateCircuitInfo() {
+	b.infoMu.Lock()
+	b.info = nil
+	b.infoMu.Unlock()
+}
+
+// CircuitPrograms returns the current program per circuit (HKx01), keyed by 0-based index.
+func (b *FlexBackend) CircuitPrograms(ctx context.Context) (map[int]int, error) {
+	ci, err := b.circuitInfoCached(ctx)
+	if ci == nil {
+		return nil, err
+	}
+	return ci.programs, err
 }
 
 // CircuitNames returns the user-set heating-circuit names (HKx11), keyed by 0-based index.
@@ -151,6 +173,9 @@ func (b *FlexBackend) SetParam(ctx context.Context, syn, value string) (string, 
 	if e.Err != "" {
 		return "", fmt.Errorf("parset: device error: %s", e.Err)
 	}
+	// The write may have changed a cached par.cgi value (e.g. a circuit program), so
+	// drop the cache to reflect it on the next read.
+	b.invalidateCircuitInfo()
 	return e.Ack, nil
 }
 

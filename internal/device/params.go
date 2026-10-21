@@ -159,6 +159,34 @@ func parseActiveCircuits(lines []string) []int {
 	return out
 }
 
+// parseCircuitPrograms reads the current program of each heating circuit (HK<c>01,
+// "Progamm HK c": 0=AUS 1=NORMAL 2=HEIZEN 3=ABSENKEN 4=ABSENKEN BIS), keyed by index.
+func parseCircuitPrograms(lines []string) map[int]int {
+	m := make(map[int]int)
+	for _, line := range lines {
+		f := strings.Split(line, ";")
+		if len(f) < 3 {
+			continue
+		}
+		syn := strings.TrimSpace(f[0])
+		if len(syn) < 5 || syn[:2] != "HK" || strings.TrimSpace(f[1]) != "6" {
+			continue
+		}
+		rest := syn[2:]
+		if !strings.HasSuffix(rest, "01") {
+			continue
+		}
+		c, err := strconv.Atoi(rest[:len(rest)-2])
+		if err != nil {
+			continue
+		}
+		if v, err := strconv.Atoi(strings.TrimSpace(f[2])); err == nil {
+			m[c] = v
+		}
+	}
+	return m
+}
+
 // synPrefix returns the leading letters of a synonym (HK008 -> "HK"), used to group
 // the parameter table by subsystem.
 func synPrefix(s string) string {

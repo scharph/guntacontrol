@@ -35,6 +35,8 @@ type DeviceReader interface {
 	CircuitNames(ctx context.Context) (map[int]string, error)
 	// ActiveCircuits returns the 0-based indices of configured circuits (HPx02 != Kein).
 	ActiveCircuits(ctx context.Context) ([]int, error)
+	// CircuitPrograms returns the current program per circuit (HKx01), by 0-based index.
+	CircuitPrograms(ctx context.Context) (map[int]int, error)
 }
 
 // SettingsStore exposes the write-protection settings, backed by the YAML config.
@@ -280,22 +282,25 @@ func (s *Server) channelUnits() map[string]string {
 // write-protection state the UI needs to gate its controls.
 type valuesResponse struct {
 	boiler.Snapshot
-	ReadOnly     bool           `json:"readOnly"`
-	AllowWrite   bool           `json:"allowWrite"`
-	Circuits     []int          `json:"circuits"`
-	CircuitNames map[int]string `json:"circuitNames"`
+	ReadOnly        bool           `json:"readOnly"`
+	AllowWrite      bool           `json:"allowWrite"`
+	Circuits        []int          `json:"circuits"`
+	CircuitNames    map[int]string `json:"circuitNames"`
+	CircuitPrograms map[int]int    `json:"circuitPrograms"`
 }
 
 func (s *Server) handleValues(w http.ResponseWriter, r *http.Request) {
 	// Circuit metadata is cached in the device backend; ignore transient read errors and
 	// fall back to the default titles / "show all" in the UI.
 	names, _ := s.sched.CircuitNames(r.Context())
+	programs, _ := s.sched.CircuitPrograms(r.Context())
 	writeJSON(w, http.StatusOK, valuesResponse{
-		Snapshot:     s.poller.Snapshot(),
-		ReadOnly:     s.settings.ReadOnly(),
-		AllowWrite:   s.settings.AllowWrite(),
-		Circuits:     s.effectiveCircuits(r.Context()),
-		CircuitNames: names,
+		Snapshot:        s.poller.Snapshot(),
+		ReadOnly:        s.settings.ReadOnly(),
+		AllowWrite:      s.settings.AllowWrite(),
+		Circuits:        s.effectiveCircuits(r.Context()),
+		CircuitNames:    names,
+		CircuitPrograms: programs,
 	})
 }
 

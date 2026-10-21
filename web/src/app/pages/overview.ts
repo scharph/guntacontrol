@@ -39,6 +39,12 @@ export class OverviewPage {
     return this.boiler.circuitNames()[String(c.index)] || c.title;
   }
 
+  /** Currently selected program of a circuit (HKx01), or null if unknown. */
+  protected circuitProgram(index: number): number | null {
+    const p = this.boiler.circuitPrograms()[String(index)];
+    return typeof p === 'number' ? p : null;
+  }
+
   // The synonym currently being written (disables its controls + shows a spinner).
   protected readonly busy = signal<string | null>(null);
   protected readonly showAll = signal(false);
