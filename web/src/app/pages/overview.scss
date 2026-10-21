@@ -2,9 +2,9 @@
 
 /* ---- hero ---- */
 .hero {
-  background: linear-gradient(135deg, #006e6e, #00a3a3);
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
   color: #fff;
-  border-radius: 18px;
+  border-radius: var(--radius);
   padding: 20px;
   box-shadow: var(--shadow);
   margin-bottom: 18px;
@@ -15,7 +15,7 @@
   justify-content: space-between;
   margin-bottom: 16px;
 }
-.hero-label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px; opacity: 0.8; }
+.hero-label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px; opacity: 0.85; }
 .hero-value { font-size: 34px; font-weight: 700; line-height: 1.1; }
 .hero-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 13px; opacity: 0.9; }
 
@@ -25,18 +25,18 @@
   gap: 8px;
 }
 .mode {
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgb(255 255 255 / 35%);
+  background: rgb(255 255 255 / 12%);
   color: #fff;
   border-radius: 10px;
   padding: 10px 8px;
   font-size: 13.5px;
   font-weight: 600;
-  transition: background 0.15s, transform 0.05s;
+  justify-content: center;
 }
-.mode:hover:not(:disabled) { background: rgba(255, 255, 255, 0.24); }
+.mode:hover:not(:disabled) { background: rgb(255 255 255 / 24%); }
 .mode:active:not(:disabled) { transform: translateY(1px); }
-.mode.active { background: #fff; color: #006e6e; border-color: #fff; }
+.mode.active { background: #fff; color: var(--accent-2); border-color: #fff; }
 .mode:disabled { opacity: 0.55; cursor: progress; }
 
 /* ---- tiles ---- */
@@ -47,8 +47,9 @@
   margin-bottom: 22px;
 }
 .tile {
-  background: var(--card);
-  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   padding: 14px 16px;
   box-shadow: var(--shadow);
 }
@@ -58,7 +59,7 @@
 .tile-unit { font-size: 14px; font-weight: 500; color: var(--muted); margin-left: 3px; }
 
 /* ---- circuits ---- */
-.circuits h2 { font-size: 15px; margin-bottom: 10px; color: var(--ink); }
+.circuits h2 { font-size: 16px; margin-bottom: 10px; }
 .circuit-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -66,8 +67,9 @@
   margin-bottom: 22px;
 }
 .circuit {
-  background: var(--card);
-  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   padding: 14px 16px;
   box-shadow: var(--shadow);
 }
@@ -81,30 +83,30 @@
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
-  background: #eceff2;
+  background: var(--surface-2);
   color: var(--muted);
 }
-.badge.on { background: rgba(31, 157, 107, 0.15); color: var(--ok); }
+.badge.on { background: var(--ok-soft); color: var(--ok); }
 .circuit-hint { color: var(--muted); }
 
 .seg { display: flex; gap: 6px; flex-wrap: wrap; }
 .seg-btn {
   flex: 1 1 auto;
-  border: 1px solid var(--line);
-  background: #f6f9fb;
-  color: var(--ink);
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
   border-radius: 8px;
   padding: 7px 6px;
   font-size: 12.5px;
   font-weight: 600;
-  transition: background 0.12s;
 }
-.seg-btn:hover:not(:disabled) { background: #eef3f7; }
+.seg-btn:hover:not(:disabled) { background: var(--border); }
 .seg-btn.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .seg-btn:disabled { opacity: 0.55; cursor: progress; }
 
 /* ---- all channels ---- */
-.all { margin-bottom: 18px; }
+.all { margin-bottom: 4px; }
 .link {
   background: none;
   border: none;
@@ -112,9 +114,10 @@
   font-weight: 600;
   padding: 4px 0;
 }
-table { width: 100%; border-collapse: collapse; margin-top: 8px; background: var(--card); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
-th, td { padding: 8px 14px; text-align: left; border-bottom: 1px solid var(--line); font-size: 13.5px; }
-th { color: var(--muted); font-weight: 600; background: #f6f9fb; }
+.link:hover { background: none; text-decoration: underline; }
+table { width: 100%; border-collapse: collapse; margin-top: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+th, td { padding: 8px 14px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+th { color: var(--muted); font-weight: 600; background: var(--surface-2); }
 td.r, th.r { text-align: right; font-variant-numeric: tabular-nums; }
 tr:last-child td { border-bottom: none; }
 

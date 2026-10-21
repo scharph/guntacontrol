@@ -35,6 +35,15 @@ export class OverviewPage {
   /** Live main program as text, e.g. "HEIZEN". */
   protected readonly programText = computed(() => this.boiler.text(PROGRAM_STATE_CHANNEL));
 
+  /** Short running state for the hero meta. "Betrieb" is a bool on the Flex, so map it
+      to a label instead of showing a raw "true"/"false". */
+  protected readonly betriebText = computed(() => {
+    const c = this.boiler.channel('Betrieb');
+    if (!c) return '';
+    if (typeof c.value === 'boolean') return c.value ? 'In Betrieb' : 'Bereit';
+    return c.value == null || c.value === '' ? '' : String(c.value);
+  });
+
   /** The PROGRAMS entry whose label matches the live program text (for highlighting). */
   protected readonly activeProgram = computed(() => matchMode(this.programText(), PROGRAMS));
 

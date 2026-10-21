@@ -6,7 +6,7 @@
       <p class="hero-value">{{ activeProgram()?.label || programText() || '–' }}</p>
     </div>
     <div class="hero-meta">
-      <span>{{ boiler.text('Betrieb') || '—' }}</span>
+      @if (betriebText()) { <span>{{ betriebText() }}</span> }
       @if (boiler.num('Leistung') != null) {
         <span>{{ boiler.num('Leistung') | number:'1.0-0' }} % Leistung</span>
       }
