@@ -36,6 +36,11 @@ type FlexBackend struct {
 	names []string // channel names, cached from daqdesc
 	units []string
 
+	// reqMu serializes all HTTP requests to the boiler. The Flex handles concurrent
+	// requests poorly (a par.cgi read racing the data poll can fail), so every request
+	// is sent one at a time.
+	reqMu sync.Mutex
+
 	// circuit names (HKx11) cached from par.cgi, refreshed on a TTL.
 	namesMu        sync.Mutex
 	circuitNames   map[int]string
@@ -102,6 +107,8 @@ func (b *FlexBackend) SetParam(ctx context.Context, syn, value string) (string, 
 	if err != nil {
 		return "", err
 	}
+	b.reqMu.Lock()
+	defer b.reqMu.Unlock()
 	resp, err := b.http.Do(req)
 	if err != nil {
 		return "", err
@@ -133,6 +140,10 @@ func (b *FlexBackend) get(ctx context.Context, path string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Serialize device access (held through the body read) so this request does not
+	// race the data poll.
+	b.reqMu.Lock()
+	defer b.reqMu.Unlock()
 	resp, err := b.http.Do(req)
 	if err != nil {
 		return nil, err
