@@ -8,9 +8,9 @@ services:
       # SQLite history + audit + the write-protection state live here (persistent).
       - ./data:/data
     environment:
-      # Boiler access keys (read == write key on the Flex). Put the real values in a
-      # .env file next to this compose file; never commit them.
-      GUNTAMATIC_KEY: ${GUNTAMATIC_KEY}
+      # Write/control key for the Flex (reads are open on the local network, so no
+      # separate read key is needed). Put the real value in a .env file next to this
+      # compose file; never commit it.
       GUNTAMATIC_WRITE_KEY: ${GUNTAMATIC_WRITE_KEY}
       # Boiler clock / timestamps are local time.
       TZ: Europe/Vienna
