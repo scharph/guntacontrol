@@ -24,6 +24,7 @@ export const HK_PROGRAMS: ModeOption[] = [
 ];
 
 export const TILES: TileDef[] = [
+  { channel: 'Betrieb', label: 'Betrieb', icon: '⚡', accent: '#2fa98b' },
   { channel: 'Aussentemperatur', label: 'Außen', icon: '🌡️', accent: '#3b9ad9' },
   { channel: 'Kesseltemperatur', label: 'Kessel', icon: '🔥', accent: '#e8743b' },
   { channel: 'Puffer oben', label: 'Puffer oben', icon: '🟥', accent: '#e05b5b' },
@@ -32,6 +33,7 @@ export const TILES: TileDef[] = [
   { channel: 'Warmwasser 0', label: 'Warmwasser', icon: '🚿', accent: '#2f9fa9' },
   { channel: 'Leistung', label: 'Leistung', icon: '⚙️', accent: '#8a7fd0' },
   { channel: 'CO2 Gehalt', label: 'CO₂', icon: '💨', accent: '#7a8a99' },
+  { channel: 'Asche leeren in', label: 'Asche leeren in', icon: '🧹', accent: '#b08968' },
 ];
 
 export const CIRCUITS: CircuitDef[] = [

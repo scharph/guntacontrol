@@ -54,8 +54,11 @@ export class OverviewPage {
   }
 
   protected tileValue(channel: string): string {
+    const v = this.boiler.channel(channel)?.value;
+    if (typeof v === 'boolean') return v ? 'EIN' : 'AUS';
     const n = this.boiler.num(channel);
-    if (n != null) return n.toFixed(1);
+    // Temperatures keep one decimal; larger counts (hours, etc.) show as whole numbers.
+    if (n != null) return Math.abs(n) >= 100 || Number.isInteger(n) ? n.toFixed(0) : n.toFixed(1);
     const t = this.boiler.text(channel);
     return t || '–';
   }
