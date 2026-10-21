@@ -42,6 +42,10 @@ export const CIRCUITS: CircuitDef[] = [
   { index: 2, title: 'Heizkreis 2', syn: 'HK201', stateChannel: 'Heizkreis 2', flowChannel: 'Vorlauf Ist 2' },
   { index: 3, title: 'Heizkreis 3', syn: 'HK301', stateChannel: 'Heizkreis 3', flowChannel: 'Vorlauf Ist 3' },
   { index: 4, title: 'Heizkreis 4', syn: 'HK401', stateChannel: 'Heizkreis 4', flowChannel: 'Vorlauf Ist 4' },
+  { index: 5, title: 'Heizkreis 5', syn: 'HK501', stateChannel: 'Heizkreis 5', flowChannel: 'Vorlauf Ist 5' },
+  { index: 6, title: 'Heizkreis 6', syn: 'HK601', stateChannel: 'Heizkreis 6', flowChannel: 'Vorlauf Ist 6' },
+  { index: 7, title: 'Heizkreis 7', syn: 'HK701', stateChannel: 'Heizkreis 7', flowChannel: 'Vorlauf Ist 7' },
+  { index: 8, title: 'Heizkreis 8', syn: 'HK801', stateChannel: 'Heizkreis 8', flowChannel: 'Vorlauf Ist 8' },
 ];
 
 // Channel that carries the live main program as text (daqdesc id 70).

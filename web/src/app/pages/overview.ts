@@ -28,9 +28,11 @@ export class OverviewPage {
   protected readonly TILES = TILES;
 
   // Heating circuits to show, filtered by the server's overview.circuits config.
-  protected readonly circuits = computed(() =>
-    CIRCUITS.filter((c) => this.boiler.circuits().includes(c.index)),
-  );
+  // An empty selection means "show all".
+  protected readonly circuits = computed(() => {
+    const sel = this.boiler.circuits();
+    return sel.length ? CIRCUITS.filter((c) => sel.includes(c.index)) : CIRCUITS;
+  });
 
   /** Circuit card title: the boiler's own name (HKx11) if set, else the default. */
   protected circuitTitle(c: { index: number; title: string }): string {

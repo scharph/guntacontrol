@@ -23,7 +23,9 @@ allowWrite: false
 readOnly: true
 
 overview:
-  circuits: [0, 1, 2, 3, 4]  # which heating circuits to show on the dashboard (empty = all)
+  # Which heating circuits (0-based, HK0-HK8) to show on the dashboard.
+  # Omit or leave empty to show all; set a list to restrict, e.g. [0, 1, 4].
+  circuits: []
 
 loxone:
   udp: ""              # push live values to a Loxone Miniserver (host:port), empty = off

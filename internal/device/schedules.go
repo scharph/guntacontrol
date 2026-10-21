@@ -37,6 +37,10 @@ var scheduleSpecs = []scheduleSpec{
 	{"Heizkreis 2", "heating", 2, []variantSpec{{"HK203", "Normal"}, {"HK203b", "mild"}, {"HK203c", "warm"}}},
 	{"Heizkreis 3", "heating", 3, []variantSpec{{"HK303", "Normal"}, {"HK303b", "mild"}, {"HK303c", "warm"}}},
 	{"Heizkreis 4", "heating", 4, []variantSpec{{"HK403", "Normal"}, {"HK403b", "mild"}, {"HK403c", "warm"}}},
+	{"Heizkreis 5", "heating", 5, []variantSpec{{"HK503", "Normal"}, {"HK503b", "mild"}, {"HK503c", "warm"}}},
+	{"Heizkreis 6", "heating", 6, []variantSpec{{"HK603", "Normal"}, {"HK603b", "mild"}, {"HK603c", "warm"}}},
+	{"Heizkreis 7", "heating", 7, []variantSpec{{"HK703", "Normal"}, {"HK703b", "mild"}, {"HK703c", "warm"}}},
+	{"Heizkreis 8", "heating", 8, []variantSpec{{"HK803", "Normal"}, {"HK803b", "mild"}, {"HK803c", "warm"}}},
 	{"Warmwasser", "water", -1, []variantSpec{{"BK002", "Normal"}, {"BK003", "Sommer"}}},
 	{"WW-Zirkulation", "circulation", -1, []variantSpec{{"ZK002", "Normal"}, {"ZK003", "Sommer"}}},
 }

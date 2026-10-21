@@ -37,7 +37,7 @@ type Loxone struct {
 // Overview configures the dashboard (start page).
 type Overview struct {
 	// Circuits selects which heating circuits (0-based) are shown on the dashboard.
-	// Empty/unset shows all three.
+	// Empty/unset shows all heating circuits.
 	Circuits []int `yaml:"circuits" json:"circuits"`
 }
 
@@ -82,9 +82,7 @@ func (c *Config) applyDefaults() {
 		on := true
 		c.ReadOnly = &on
 	}
-	if c.Overview.Circuits == nil {
-		c.Overview.Circuits = []int{0, 1, 2, 3, 4}
-	}
+	// Overview.Circuits is left as-is: nil/empty means "show all heating circuits".
 }
 
 // PollInterval is PollSeconds as a duration.
