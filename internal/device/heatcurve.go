@@ -30,6 +30,8 @@ var curveSpecs = []curveSpec{
 	{0, "Heizkreis 0", "Aussentemperatur", "Vorlauf Ist 0"},
 	{1, "Heizkreis 1", "Aussentemperatur", "Vorlauf Ist 1"},
 	{2, "Heizkreis 2", "Aussentemperatur", "Vorlauf Ist 2"},
+	{3, "Heizkreis 3", "Aussentemperatur", "Vorlauf Ist 3"},
+	{4, "Heizkreis 4", "Aussentemperatur", "Vorlauf Ist 4"},
 }
 
 // parFloats parses par.cgi into a syn -> value map. The value is the third field of a

@@ -83,7 +83,7 @@ func (c *Config) applyDefaults() {
 		c.ReadOnly = &on
 	}
 	if c.Overview.Circuits == nil {
-		c.Overview.Circuits = []int{0, 1, 2}
+		c.Overview.Circuits = []int{0, 1, 2, 3, 4}
 	}
 }
 

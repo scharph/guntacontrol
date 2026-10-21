@@ -26,6 +26,8 @@ var HistoryChannels = []string{
 	"Vorlauf Ist 0",
 	"Vorlauf Ist 1",
 	"Vorlauf Ist 2",
+	"Vorlauf Ist 3",
+	"Vorlauf Ist 4",
 }
 
 // runningChannel drives the burner-running gate (starts, runtime, cycle length):
