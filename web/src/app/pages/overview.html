@@ -49,7 +49,7 @@
     @for (c of circuits(); track c.syn) {
       <div class="circuit">
         <div class="circuit-head">
-          <span class="circuit-title">{{ c.title }}</span>
+          <span class="circuit-title">{{ circuitTitle(c) }}</span>
           <span class="circuit-flow">
             @if (boiler.num(c.flowChannel) != null) {
               {{ boiler.num(c.flowChannel) | number:'1.1-1' }} °C

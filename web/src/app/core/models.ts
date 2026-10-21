@@ -20,6 +20,8 @@ export interface Snapshot {
   allowWrite: boolean;
   // Heating circuits (0-based) the dashboard should show (overview.circuits in the config).
   circuits?: number[];
+  // User-set circuit names from the boiler (HKx11), keyed by circuit index as a string.
+  circuitNames?: Record<string, string>;
 }
 
 export interface ParamAck {

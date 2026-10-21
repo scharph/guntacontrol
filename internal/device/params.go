@@ -100,6 +100,36 @@ func lastNonEmpty(f []string) string {
 	return ""
 }
 
+// parseCircuitNames reads the user-set heating-circuit names from par.cgi. Each circuit
+// has a text parameter HK<c>11 ("Benennung HK c"); only non-empty names are returned,
+// keyed by the 0-based circuit index.
+func parseCircuitNames(lines []string) map[int]string {
+	m := make(map[int]string)
+	for _, line := range lines {
+		f := strings.Split(line, ";")
+		if len(f) < 3 {
+			continue
+		}
+		syn := strings.TrimSpace(f[0])
+		// Benennung params are text (type 8) with synonym HK<digits>11.
+		if len(syn) < 5 || syn[:2] != "HK" || strings.TrimSpace(f[1]) != "8" {
+			continue
+		}
+		rest := syn[2:]
+		if !strings.HasSuffix(rest, "11") {
+			continue
+		}
+		c, err := strconv.Atoi(rest[:len(rest)-2])
+		if err != nil {
+			continue
+		}
+		if name := strings.TrimSpace(f[2]); name != "" {
+			m[c] = name
+		}
+	}
+	return m
+}
+
 // synPrefix returns the leading letters of a synonym (HK008 -> "HK"), used to group
 // the parameter table by subsystem.
 func synPrefix(s string) string {

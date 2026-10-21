@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"guntacontrol/internal/boiler"
@@ -34,6 +35,42 @@ type FlexBackend struct {
 
 	names []string // channel names, cached from daqdesc
 	units []string
+
+	// circuit names (HKx11) cached from par.cgi, refreshed on a TTL.
+	namesMu        sync.Mutex
+	circuitNames   map[int]string
+	circuitNamesAt time.Time
+}
+
+// circuitNamesTTL is how long cached heating-circuit names are reused before par.cgi
+// is read again (they change rarely, so this keeps /api/values cheap).
+const circuitNamesTTL = 10 * time.Minute
+
+// CircuitNames returns the user-set heating-circuit names (HKx11) from par.cgi, keyed
+// by 0-based circuit index. The result is cached; on a fetch error the last known names
+// (possibly nil) are returned alongside the error.
+func (b *FlexBackend) CircuitNames(ctx context.Context) (map[int]string, error) {
+	b.namesMu.Lock()
+	if b.circuitNames != nil && time.Since(b.circuitNamesAt) < circuitNamesTTL {
+		m := b.circuitNames
+		b.namesMu.Unlock()
+		return m, nil
+	}
+	b.namesMu.Unlock()
+
+	lines, err := b.get(ctx, "/par.cgi")
+	if err != nil {
+		b.namesMu.Lock()
+		m := b.circuitNames
+		b.namesMu.Unlock()
+		return m, err
+	}
+	m := parseCircuitNames(lines)
+	b.namesMu.Lock()
+	b.circuitNames = m
+	b.circuitNamesAt = time.Now()
+	b.namesMu.Unlock()
+	return m, nil
 }
 
 // apiError is the device's JSON error/ack envelope, e.g. {"err":"Keine Berechtigung"}

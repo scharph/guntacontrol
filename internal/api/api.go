@@ -31,6 +31,8 @@ type DeviceReader interface {
 	Schedules(ctx context.Context) ([]boiler.Schedule, error)
 	HeatCurves(ctx context.Context) ([]boiler.HeatCurve, error)
 	Params(ctx context.Context) ([]boiler.Param, error)
+	// CircuitNames returns user-set heating-circuit names (HKx11) by 0-based index.
+	CircuitNames(ctx context.Context) (map[int]string, error)
 }
 
 // SettingsStore exposes the write-protection settings, backed by the YAML config.
@@ -258,17 +260,22 @@ func (s *Server) channelUnits() map[string]string {
 // write-protection state the UI needs to gate its controls.
 type valuesResponse struct {
 	boiler.Snapshot
-	ReadOnly   bool  `json:"readOnly"`
-	AllowWrite bool  `json:"allowWrite"`
-	Circuits   []int `json:"circuits"`
+	ReadOnly     bool           `json:"readOnly"`
+	AllowWrite   bool           `json:"allowWrite"`
+	Circuits     []int          `json:"circuits"`
+	CircuitNames map[int]string `json:"circuitNames"`
 }
 
 func (s *Server) handleValues(w http.ResponseWriter, r *http.Request) {
+	// Circuit names are cached in the device backend; ignore a transient read error and
+	// fall back to the default titles in the UI.
+	names, _ := s.sched.CircuitNames(r.Context())
 	writeJSON(w, http.StatusOK, valuesResponse{
-		Snapshot:   s.poller.Snapshot(),
-		ReadOnly:   s.settings.ReadOnly(),
-		AllowWrite: s.settings.AllowWrite(),
-		Circuits:   s.settings.OverviewCircuits(),
+		Snapshot:     s.poller.Snapshot(),
+		ReadOnly:     s.settings.ReadOnly(),
+		AllowWrite:   s.settings.AllowWrite(),
+		Circuits:     s.settings.OverviewCircuits(),
+		CircuitNames: names,
 	})
 }
 

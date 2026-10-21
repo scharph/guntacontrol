@@ -32,6 +32,11 @@ export class OverviewPage {
     CIRCUITS.filter((c) => this.boiler.circuits().includes(c.index)),
   );
 
+  /** Circuit card title: the boiler's own name (HKx11) if set, else the default. */
+  protected circuitTitle(c: { index: number; title: string }): string {
+    return this.boiler.circuitNames()[String(c.index)] || c.title;
+  }
+
   // The synonym currently being written (disables its controls + shows a spinner).
   protected readonly busy = signal<string | null>(null);
   protected readonly showAll = signal(false);

@@ -58,6 +58,7 @@ func (b *FlexBackend) HeatCurves(ctx context.Context) ([]boiler.HeatCurve, error
 		return nil, err
 	}
 	p := parFloats(lines)
+	names := parseCircuitNames(lines)
 
 	var out []boiler.HeatCurve
 	for _, s := range curveSpecs {
@@ -66,9 +67,13 @@ func (b *FlexBackend) HeatCurves(ctx context.Context) ([]boiler.HeatCurve, error
 		if !ok {
 			continue // circuit not present on this device
 		}
+		title := s.title
+		if n := names[s.circuit]; n != "" {
+			title = n
+		}
 		out = append(out, boiler.HeatCurve{
 			Circuit:        s.circuit,
-			Title:          s.title,
+			Title:          title,
 			Slope:          slope,
 			Shift:          p[fmt.Sprintf("HP%s09", d)],
 			FlowMin:        p[fmt.Sprintf("HP%s05", d)],

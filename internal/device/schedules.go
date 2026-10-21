@@ -26,16 +26,17 @@ type variantSpec struct{ id, label string }
 type scheduleSpec struct {
 	title    string
 	kind     string
+	circuit  int // 0-based heating circuit for naming; -1 for non-heating
 	variants []variantSpec
 }
 
 // scheduleSpecs lists, in display order, the time programs we surface.
 var scheduleSpecs = []scheduleSpec{
-	{"Heizkreis 0", "heating", []variantSpec{{"HK003", "Normal"}, {"HK003b", "mild"}, {"HK003c", "warm"}}},
-	{"Heizkreis 1", "heating", []variantSpec{{"HK103", "Normal"}, {"HK103b", "mild"}, {"HK103c", "warm"}}},
-	{"Heizkreis 2", "heating", []variantSpec{{"HK203", "Normal"}, {"HK203b", "mild"}, {"HK203c", "warm"}}},
-	{"Warmwasser", "water", []variantSpec{{"BK002", "Normal"}, {"BK003", "Sommer"}}},
-	{"WW-Zirkulation", "circulation", []variantSpec{{"ZK002", "Normal"}, {"ZK003", "Sommer"}}},
+	{"Heizkreis 0", "heating", 0, []variantSpec{{"HK003", "Normal"}, {"HK003b", "mild"}, {"HK003c", "warm"}}},
+	{"Heizkreis 1", "heating", 1, []variantSpec{{"HK103", "Normal"}, {"HK103b", "mild"}, {"HK103c", "warm"}}},
+	{"Heizkreis 2", "heating", 2, []variantSpec{{"HK203", "Normal"}, {"HK203b", "mild"}, {"HK203c", "warm"}}},
+	{"Warmwasser", "water", -1, []variantSpec{{"BK002", "Normal"}, {"BK003", "Sommer"}}},
+	{"WW-Zirkulation", "circulation", -1, []variantSpec{{"ZK002", "Normal"}, {"ZK003", "Sommer"}}},
 }
 
 // parseParamInts returns the leading integer fields of a par.cgi line (after the id and
@@ -73,8 +74,9 @@ func decodeClockProgram(vals []int) []boiler.DaySchedule {
 	return days
 }
 
-// buildSchedules decodes the configured schedules from a par.cgi parameter map.
-func buildSchedules(params map[string][]int) []boiler.Schedule {
+// buildSchedules decodes the configured schedules from a par.cgi parameter map, using
+// the user-set circuit names (HKx11) for heating-circuit titles where present.
+func buildSchedules(params map[string][]int, names map[int]string) []boiler.Schedule {
 	var out []boiler.Schedule
 	for _, spec := range scheduleSpecs {
 		var variants []boiler.ScheduleVariant
@@ -89,9 +91,16 @@ func buildSchedules(params map[string][]int) []boiler.Schedule {
 				Days:  decodeClockProgram(vals),
 			})
 		}
-		if len(variants) > 0 {
-			out = append(out, boiler.Schedule{Title: spec.title, Kind: spec.kind, Variants: variants})
+		if len(variants) == 0 {
+			continue
 		}
+		title := spec.title
+		if spec.circuit >= 0 {
+			if n := names[spec.circuit]; n != "" {
+				title = n
+			}
+		}
+		out = append(out, boiler.Schedule{Title: title, Kind: spec.kind, Variants: variants})
 	}
 	return out
 }
@@ -108,5 +117,5 @@ func (b *FlexBackend) Schedules(ctx context.Context) ([]boiler.Schedule, error) 
 			params[id] = vals
 		}
 	}
-	return buildSchedules(params), nil
+	return buildSchedules(params, parseCircuitNames(lines)), nil
 }
