@@ -33,6 +33,8 @@ type DeviceReader interface {
 	Params(ctx context.Context) ([]boiler.Param, error)
 	// CircuitNames returns user-set heating-circuit names (HKx11) by 0-based index.
 	CircuitNames(ctx context.Context) (map[int]string, error)
+	// ActiveCircuits returns the 0-based indices of configured circuits (HPx02 != Kein).
+	ActiveCircuits(ctx context.Context) ([]int, error)
 }
 
 // SettingsStore exposes the write-protection settings, backed by the YAML config.
@@ -201,6 +203,15 @@ func (s *Server) handleSchedules(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
 		return
 	}
+	if f := s.circuitFilter(r.Context()); f != nil {
+		kept := schedules[:0]
+		for _, sc := range schedules {
+			if sc.Circuit < 0 || f[sc.Circuit] { // keep non-heating (water/circulation) always
+				kept = append(kept, sc)
+			}
+		}
+		schedules = kept
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"schedules": schedules})
 }
 
@@ -214,6 +225,15 @@ func (s *Server) handleHeatCurves(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
 		return
+	}
+	if f := s.circuitFilter(r.Context()); f != nil {
+		kept := curves[:0]
+		for _, c := range curves {
+			if f[c.Circuit] {
+				kept = append(kept, c)
+			}
+		}
+		curves = kept
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"curves": curves})
 }
@@ -267,16 +287,40 @@ type valuesResponse struct {
 }
 
 func (s *Server) handleValues(w http.ResponseWriter, r *http.Request) {
-	// Circuit names are cached in the device backend; ignore a transient read error and
-	// fall back to the default titles in the UI.
+	// Circuit metadata is cached in the device backend; ignore transient read errors and
+	// fall back to the default titles / "show all" in the UI.
 	names, _ := s.sched.CircuitNames(r.Context())
 	writeJSON(w, http.StatusOK, valuesResponse{
 		Snapshot:     s.poller.Snapshot(),
 		ReadOnly:     s.settings.ReadOnly(),
 		AllowWrite:   s.settings.AllowWrite(),
-		Circuits:     s.settings.OverviewCircuits(),
+		Circuits:     s.effectiveCircuits(r.Context()),
 		CircuitNames: names,
 	})
+}
+
+// effectiveCircuits is the set of heating circuits to show: an explicit overview.circuits
+// config wins; otherwise the device's active circuits (HPx02 != Kein). An empty result
+// (e.g. a transient par.cgi error) is treated as "show all" by the callers.
+func (s *Server) effectiveCircuits(ctx context.Context) []int {
+	if cfg := s.settings.OverviewCircuits(); len(cfg) > 0 {
+		return cfg
+	}
+	active, _ := s.sched.ActiveCircuits(ctx)
+	return active
+}
+
+// circuitFilter returns a membership set of circuits to keep, or nil to keep all.
+func (s *Server) circuitFilter(ctx context.Context) map[int]bool {
+	eff := s.effectiveCircuits(ctx)
+	if len(eff) == 0 {
+		return nil
+	}
+	m := make(map[int]bool, len(eff))
+	for _, c := range eff {
+		m[c] = true
+	}
+	return m
 }
 
 // handleSettings reads or updates server settings.

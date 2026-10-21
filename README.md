@@ -62,7 +62,7 @@ es gibt keine Einzel-Flags mehr. Nur `--config <datei>`, `--data <verzeichnis>` 
 | `retentionDays` | `35` | Aufbewahrung der Verlaufsdaten |
 | `allowWrite` | `false` | Steuern überhaupt erlauben |
 | `readOnly` | `true` | Schreibschutz (im UI umschaltbar, wird zurückgeschrieben) |
-| `overview.circuits` | alle | welche Heizkreise (HK0–HK8) die Startseite zeigt; leer = alle |
+| `overview.circuits` | aktive | welche Heizkreise (HK0–HK8) gezeigt werden; leer = nur aktive (konfigurierte, `HPx02 ≠ Kein`) |
 | `loxone.udp` | – | UDP-Push an einen Loxone Miniserver (`host:port`) |
 
 Der Schlüssel wird nie im Repo gespeichert: `guntacontrol.yaml` ist gitignored.

@@ -41,41 +41,64 @@ type FlexBackend struct {
 	// is sent one at a time.
 	reqMu sync.Mutex
 
-	// circuit names (HKx11) cached from par.cgi, refreshed on a TTL.
-	namesMu        sync.Mutex
-	circuitNames   map[int]string
-	circuitNamesAt time.Time
+	// circuit metadata (names HKx11 + active modes HPx02) cached from par.cgi on a TTL.
+	infoMu sync.Mutex
+	info   *circuitInfo
+	infoAt time.Time
 }
 
-// circuitNamesTTL is how long cached heating-circuit names are reused before par.cgi
-// is read again (they change rarely, so this keeps /api/values cheap).
-const circuitNamesTTL = 10 * time.Minute
+// circuitInfo bundles the heating-circuit metadata read from one par.cgi fetch.
+type circuitInfo struct {
+	names  map[int]string // HKx11 custom names (non-empty only)
+	active []int          // 0-based indices with HPx02 != "Kein"
+}
 
-// CircuitNames returns the user-set heating-circuit names (HKx11) from par.cgi, keyed
-// by 0-based circuit index. The result is cached; on a fetch error the last known names
-// (possibly nil) are returned alongside the error.
-func (b *FlexBackend) CircuitNames(ctx context.Context) (map[int]string, error) {
-	b.namesMu.Lock()
-	if b.circuitNames != nil && time.Since(b.circuitNamesAt) < circuitNamesTTL {
-		m := b.circuitNames
-		b.namesMu.Unlock()
-		return m, nil
+// circuitInfoTTL is how long cached circuit metadata is reused before par.cgi is read
+// again (it changes rarely, so this keeps /api/values cheap).
+const circuitInfoTTL = 10 * time.Minute
+
+// circuitInfoCached returns the cached circuit metadata, refreshing it from par.cgi when
+// stale. On a fetch error the last known value (possibly nil) is returned with the error.
+func (b *FlexBackend) circuitInfoCached(ctx context.Context) (*circuitInfo, error) {
+	b.infoMu.Lock()
+	if b.info != nil && time.Since(b.infoAt) < circuitInfoTTL {
+		ci := b.info
+		b.infoMu.Unlock()
+		return ci, nil
 	}
-	b.namesMu.Unlock()
+	b.infoMu.Unlock()
 
 	lines, err := b.get(ctx, "/par.cgi")
 	if err != nil {
-		b.namesMu.Lock()
-		m := b.circuitNames
-		b.namesMu.Unlock()
-		return m, err
+		b.infoMu.Lock()
+		ci := b.info
+		b.infoMu.Unlock()
+		return ci, err
 	}
-	m := parseCircuitNames(lines)
-	b.namesMu.Lock()
-	b.circuitNames = m
-	b.circuitNamesAt = time.Now()
-	b.namesMu.Unlock()
-	return m, nil
+	ci := &circuitInfo{names: parseCircuitNames(lines), active: parseActiveCircuits(lines)}
+	b.infoMu.Lock()
+	b.info = ci
+	b.infoAt = time.Now()
+	b.infoMu.Unlock()
+	return ci, nil
+}
+
+// CircuitNames returns the user-set heating-circuit names (HKx11), keyed by 0-based index.
+func (b *FlexBackend) CircuitNames(ctx context.Context) (map[int]string, error) {
+	ci, err := b.circuitInfoCached(ctx)
+	if ci == nil {
+		return nil, err
+	}
+	return ci.names, err
+}
+
+// ActiveCircuits returns the 0-based indices of configured heating circuits (HPx02 != Kein).
+func (b *FlexBackend) ActiveCircuits(ctx context.Context) ([]int, error) {
+	ci, err := b.circuitInfoCached(ctx)
+	if ci == nil {
+		return nil, err
+	}
+	return ci.active, err
 }
 
 // apiError is the device's JSON error/ack envelope, e.g. {"err":"Keine Berechtigung"}

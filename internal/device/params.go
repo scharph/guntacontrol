@@ -130,6 +130,35 @@ func parseCircuitNames(lines []string) map[int]string {
 	return m
 }
 
+// parseActiveCircuits returns the 0-based indices of configured heating circuits. A
+// circuit is active when its drive mode HP<c>02 ("Betrieb HK c") is not 0 ("Kein");
+// values 1/2/3 mean Pumpe/Mischer/Mischer (ECO).
+func parseActiveCircuits(lines []string) []int {
+	var out []int
+	for _, line := range lines {
+		f := strings.Split(line, ";")
+		if len(f) < 3 {
+			continue
+		}
+		syn := strings.TrimSpace(f[0])
+		if len(syn) < 5 || syn[:2] != "HP" || strings.TrimSpace(f[1]) != "6" {
+			continue
+		}
+		rest := syn[2:]
+		if !strings.HasSuffix(rest, "02") {
+			continue
+		}
+		c, err := strconv.Atoi(rest[:len(rest)-2])
+		if err != nil {
+			continue
+		}
+		if strings.TrimSpace(f[2]) != "0" {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 // synPrefix returns the leading letters of a synonym (HK008 -> "HK"), used to group
 // the parameter table by subsystem.
 func synPrefix(s string) string {

@@ -45,7 +45,8 @@ type ScheduleVariant struct {
 // Schedule groups the variants that belong to one circuit / hot-water program.
 type Schedule struct {
 	Title    string            `json:"title"`
-	Kind     string            `json:"kind"` // "heating" | "water" | "circulation"
+	Kind     string            `json:"kind"`    // "heating" | "water" | "circulation"
+	Circuit  int               `json:"circuit"` // 0-based heating circuit, -1 for non-heating
 	Variants []ScheduleVariant `json:"variants"`
 }
 

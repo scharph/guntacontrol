@@ -106,7 +106,7 @@ func buildSchedules(params map[string][]int, names map[int]string) []boiler.Sche
 				title = n
 			}
 		}
-		out = append(out, boiler.Schedule{Title: title, Kind: spec.kind, Variants: variants})
+		out = append(out, boiler.Schedule{Title: title, Kind: spec.kind, Circuit: spec.circuit, Variants: variants})
 	}
 	return out
 }

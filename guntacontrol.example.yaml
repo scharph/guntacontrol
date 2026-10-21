@@ -23,8 +23,9 @@ allowWrite: false
 readOnly: true
 
 overview:
-  # Which heating circuits (0-based, HK0-HK8) to show on the dashboard.
-  # Omit or leave empty to show all; set a list to restrict, e.g. [0, 1, 4].
+  # Which heating circuits (0-based, HK0-HK8) to show on the dashboard, Heizkurve and
+  # Zeiten. Omit or leave empty to show only the active (configured) circuits
+  # (HPx02 "Betrieb HK" != Kein); set a list to force specific ones, e.g. [0, 1, 4].
   circuits: []
 
 loxone:
