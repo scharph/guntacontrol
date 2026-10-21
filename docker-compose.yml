@@ -1,0 +1,30 @@
+services:
+  guntacontrol:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # SQLite history + audit + the write-protection state live here (persistent).
+      - ./data:/data
+    environment:
+      # Boiler access keys (read == write key on the Flex). Put the real values in a
+      # .env file next to this compose file; never commit them.
+      GUNTAMATIC_KEY: ${GUNTAMATIC_KEY}
+      GUNTAMATIC_WRITE_KEY: ${GUNTAMATIC_WRITE_KEY}
+      # Boiler clock / timestamps are local time.
+      TZ: Europe/Vienna
+    # Default command is monitoring-only (safe). To allow control from the app/Loxone,
+    # uncomment the line below (keeps the embedded UI and /data paths from the image).
+    # To push live values to a Loxone Miniserver, append: -loxone-udp 192.168.0.10:7000
+    command:
+      - guntacontrol
+      - -addr
+      - ":8080"
+      - -host
+      - "192.168.0.69"
+      - -db
+      - /data/guntacontrol.db
+      - -state
+      - /data/state.json
+      # - -allow-write

@@ -1,0 +1,465 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io/fs"
+	"log"
+	"net"
+	"net/http"
+	"os"
+	"path"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+	"sync/atomic"
+	"time"
+)
+
+// paramWriter writes a parameter by synonym.
+type paramWriter interface {
+	SetParam(ctx context.Context, syn, value string) (string, error)
+}
+
+// scheduleReader reads the device's time programs ("Uhrenprogramme") via par.cgi.
+type scheduleReader interface {
+	Schedules(ctx context.Context) ([]Schedule, error)
+}
+
+// Server exposes the polled boiler data over a small HTTP API plus a Prometheus-style
+// metrics endpoint and the embedded web UI.
+type Server struct {
+	poller *Poller
+	param  paramWriter
+	// allowWrite is the master capability: when false, writes are impossible and the
+	// read-only toggle cannot be disabled (no write key / not permitted at startup).
+	allowWrite bool
+	// readOnly is the user-facing write protection ("Schreibschutz"). It defaults to
+	// enabled (safe) and, like Heliotherm's read-only mode, refuses every control
+	// command until the user disables it in the settings. It is persisted so the
+	// choice survives restarts.
+	readOnly atomic.Bool
+	// statePath is where readOnly is persisted as JSON; empty disables persistence.
+	statePath string
+	// webFS, if set, is the embedded single-page app served at / with history-API
+	// fallback. When nil, / serves the built-in status table.
+	webFS fs.FS
+	// history, if set, backs the Auswertung endpoints (/api/history, /api/insights).
+	history *History
+	// sched, if set, serves the device's time programs at /api/schedules (flex only).
+	sched scheduleReader
+	// audit, if set, records every parameter/setting change (who, when, what, result).
+	audit *AuditLog
+}
+
+// clientIP extracts the caller's address for the audit log, honouring a single
+// X-Forwarded-For hop when behind a proxy.
+func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		return strings.TrimSpace(strings.Split(xff, ",")[0])
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}
+
+// actor names the interface a write came through: an explicit X-Actor header or ?via=
+// (set by the web app), else the given default.
+func actor(r *http.Request, def string) string {
+	if v := r.Header.Get("X-Actor"); v != "" {
+		return v
+	}
+	if v := r.URL.Query().Get("via"); v != "" {
+		return v
+	}
+	return def
+}
+
+// record writes an audit entry if auditing is enabled.
+func (s *Server) record(e AuditEntry) {
+	if s.audit != nil {
+		s.audit.Record(e)
+	}
+}
+
+func NewServer(p *Poller, param paramWriter, allowWrite bool) *Server {
+	return &Server{poller: p, param: param, allowWrite: allowWrite}
+}
+
+// persistedState is the on-disk settings file.
+type persistedState struct {
+	ReadOnly bool `json:"readOnly"`
+}
+
+// InitState sets where write-protection is persisted and the initial read-only state.
+// A persisted value wins over initialReadOnly; when no file exists, initialReadOnly is
+// used (callers pass true for a safe default unless -allow-write requested otherwise).
+func (s *Server) InitState(statePath string, initialReadOnly bool) {
+	s.statePath = statePath
+	s.readOnly.Store(initialReadOnly)
+	if statePath == "" {
+		return
+	}
+	data, err := os.ReadFile(statePath)
+	if err != nil {
+		return // no file yet: keep initialReadOnly
+	}
+	var st persistedState
+	if err := json.Unmarshal(data, &st); err != nil {
+		log.Printf("state: ignoring unreadable %s: %v", statePath, err)
+		return
+	}
+	s.readOnly.Store(st.ReadOnly)
+}
+
+func (s *Server) IsReadOnly() bool { return s.readOnly.Load() }
+
+// setReadOnly updates the write protection and persists it. Enabling (true) is always
+// allowed; disabling requires the write capability.
+func (s *Server) setReadOnly(on bool) error {
+	if !on && !s.allowWrite {
+		return fmt.Errorf("writes disabled at startup; restart with -allow-write")
+	}
+	s.readOnly.Store(on)
+	if s.statePath == "" {
+		return nil
+	}
+	data, _ := json.Marshal(persistedState{ReadOnly: on})
+	if err := os.WriteFile(s.statePath, data, 0o600); err != nil {
+		log.Printf("state: could not persist %s: %v", s.statePath, err)
+	}
+	return nil
+}
+
+func (s *Server) Routes() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", s.handleIndex)
+	mux.HandleFunc("/api/values", s.handleValues)
+	mux.HandleFunc("/metrics", s.handleMetrics)
+	mux.HandleFunc("/healthz", s.handleHealth)
+	mux.HandleFunc("/api/param", s.handleParam)
+	mux.HandleFunc("/api/settings", s.handleSettings)
+	mux.HandleFunc("/api/history", s.handleHistory)
+	mux.HandleFunc("/api/insights", s.handleInsights)
+	mux.HandleFunc("/api/schedules", s.handleSchedules)
+	mux.HandleFunc("/api/audit", s.handleAudit)
+	s.registerLoxone(mux)
+	return mux
+}
+
+// handleHistory returns downsampled series for the Auswertung chart:
+//
+//	GET /api/history?channels=Aussentemperatur,Kesseltemperatur&from=<ms>&to=<ms>&max=500
+func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
+	if s.history == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "history disabled"})
+		return
+	}
+	q := r.URL.Query()
+	to := time.Now()
+	from := to.Add(-24 * time.Hour)
+	if v := q.Get("from"); v != "" {
+		if ms, err := strconv.ParseInt(v, 10, 64); err == nil {
+			from = time.UnixMilli(ms)
+		}
+	}
+	if v := q.Get("to"); v != "" {
+		if ms, err := strconv.ParseInt(v, 10, 64); err == nil {
+			to = time.UnixMilli(ms)
+		}
+	}
+	channels := historyChannels
+	if v := q.Get("channels"); v != "" {
+		channels = strings.Split(v, ",")
+	}
+	maxPts := 500
+	if v := q.Get("max"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			maxPts = n
+		}
+	}
+	units := s.channelUnits()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"from":   from.UnixMilli(),
+		"to":     to.UnixMilli(),
+		"series": s.history.Range(from, to, channels, maxPts, units),
+	})
+}
+
+// handleInsights returns the per-day table and hints: GET /api/insights?days=14.
+func (s *Server) handleInsights(w http.ResponseWriter, r *http.Request) {
+	if s.history == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "history disabled"})
+		return
+	}
+	days := 14
+	if v := r.URL.Query().Get("days"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			days = n
+		}
+	}
+	writeJSON(w, http.StatusOK, s.history.Insights(days))
+}
+
+// handleSchedules returns the decoded time programs ("Uhrenprogramme"), read-only:
+//
+//	GET /api/schedules -> {"schedules":[{title,kind,variants:[{id,label,days:[...]}]}]}
+func (s *Server) handleSchedules(w http.ResponseWriter, r *http.Request) {
+	if s.sched == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Zeitprogramme nur mit dem flex-Backend verfügbar"})
+		return
+	}
+	schedules, err := s.sched.Schedules(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"schedules": schedules})
+}
+
+// handleAudit returns the recent change log (newest first): GET /api/audit?limit=100.
+func (s *Server) handleAudit(w http.ResponseWriter, r *http.Request) {
+	if s.audit == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "audit disabled"})
+		return
+	}
+	limit := 100
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			limit = n
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"entries": s.audit.Recent(limit)})
+}
+
+// channelUnits maps channel name -> unit from the latest snapshot.
+func (s *Server) channelUnits() map[string]string {
+	m := make(map[string]string)
+	for _, v := range s.poller.Snapshot().Values {
+		m[v.Name] = v.Unit
+	}
+	return m
+}
+
+// valuesResponse is the /api/values body: the device snapshot plus the server-level
+// write-protection state the UI needs to gate its controls.
+type valuesResponse struct {
+	Snapshot
+	ReadOnly   bool `json:"readOnly"`
+	AllowWrite bool `json:"allowWrite"`
+}
+
+func (s *Server) handleValues(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, valuesResponse{
+		Snapshot:   s.poller.Snapshot(),
+		ReadOnly:   s.readOnly.Load(),
+		AllowWrite: s.allowWrite,
+	})
+}
+
+// handleSettings reads or updates server settings.
+//
+//	GET  /api/settings            -> {"readOnly":bool,"allowWrite":bool}
+//	POST /api/settings {readOnly}  -> same, after applying the change
+func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		// nothing to do; fall through to the common response below
+	case http.MethodPost:
+		var body struct {
+			ReadOnly *bool `json:"readOnly"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ReadOnly == nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "need {readOnly: bool}"})
+			return
+		}
+		err := s.setReadOnly(*body.ReadOnly)
+		entry := AuditEntry{
+			Who: clientIP(r), Via: actor(r, "api"), Action: "settings",
+			Target: "readOnly", Value: strconv.FormatBool(*body.ReadOnly),
+		}
+		if err != nil {
+			entry.Result, entry.Detail = "error", err.Error()
+			s.record(entry)
+			writeJSON(w, http.StatusForbidden, map[string]string{"error": err.Error()})
+			return
+		}
+		entry.Result = "ok"
+		s.record(entry)
+	default:
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "GET or POST"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{
+		"readOnly":   s.readOnly.Load(),
+		"allowWrite": s.allowWrite,
+	})
+}
+
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	snap := s.poller.Snapshot()
+	if snap.Err != "" || snap.Updated.IsZero() {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"ok": false, "error": snap.Err, "updated": snap.Updated,
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "updated": snap.Updated})
+}
+
+// handleParam writes a parameter by synonym:
+// POST /api/param  body {"syn":"PR001","value":"1"}.
+func (s *Server) handleParam(w http.ResponseWriter, r *http.Request) {
+	if !s.writeAllowed(w) {
+		return
+	}
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "POST required"})
+		return
+	}
+	var body struct {
+		Syn   string `json:"syn"`
+		Value string `json:"value"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Syn == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "need {syn, value}"})
+		return
+	}
+	ack, err := s.param.SetParam(r.Context(), body.Syn, body.Value)
+	entry := AuditEntry{
+		Who: clientIP(r), Via: actor(r, "api"), Action: "param",
+		Target: body.Syn, Value: body.Value,
+	}
+	if err != nil {
+		entry.Result, entry.Detail = "error", err.Error()
+		s.record(entry)
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+	entry.Result, entry.Detail = "ok", ack
+	s.record(entry)
+	writeJSON(w, http.StatusOK, map[string]string{"ack": ack})
+}
+
+func (s *Server) writeAllowed(w http.ResponseWriter) bool {
+	if !s.allowWrite {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "writes disabled; start with -allow-write"})
+		return false
+	}
+	if s.readOnly.Load() {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "Schreibschutz aktiv – in den Einstellungen deaktivieren"})
+		return false
+	}
+	return true
+}
+
+var metricNameRe = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
+
+// handleMetrics renders numeric and bool channels in Prometheus text format.
+func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	snap := s.poller.Snapshot()
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+
+	fmt.Fprintf(w, "# HELP guntamatic_up 1 if the last poll succeeded.\n")
+	fmt.Fprintf(w, "# TYPE guntamatic_up gauge\n")
+	up := 0
+	if snap.Err == "" && !snap.Updated.IsZero() {
+		up = 1
+	}
+	fmt.Fprintf(w, "guntamatic_up %d\n", up)
+
+	for _, v := range snap.Values {
+		var f float64
+		switch x := v.Value.(type) {
+		case float64:
+			f = x
+		case bool:
+			if x {
+				f = 1
+			}
+		default:
+			continue // strings and undecodable values are skipped
+		}
+		metric := "guntamatic_" + sanitize(v.Name)
+		fmt.Fprintf(w, "%s{id=\"%d\",unit=%q} %g\n", metric, v.ID, v.Unit, f)
+	}
+}
+
+func sanitize(name string) string {
+	s := metricNameRe.ReplaceAllString(strings.ToLower(name), "_")
+	s = strings.Trim(s, "_")
+	if s == "" {
+		s = "value"
+	}
+	return s
+}
+
+func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
+	// When a SPA webroot is configured, "/" catches every non-API path: serve the
+	// requested static file if it exists, otherwise fall back to index.html so the
+	// client-side app can route.
+	if s.webFS != nil {
+		s.serveSPA(w, r)
+		return
+	}
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	snap := s.poller.Snapshot()
+	vals := append([]Value(nil), snap.Values...)
+	sort.Slice(vals, func(i, j int) bool { return vals[i].Name < vals[j].Name })
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprintf(w, `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="5">`)
+	fmt.Fprintf(w, `<title>Guntamatic</title><style>body{font:14px system-ui;margin:2rem;max-width:720px}`)
+	fmt.Fprintf(w, `table{border-collapse:collapse;width:100%%}td,th{border-bottom:1px solid #ddd;padding:4px 8px;text-align:left}`)
+	fmt.Fprintf(w, `td.v{text-align:right;font-variant-numeric:tabular-nums}.err{color:#b00}</style>`)
+	fmt.Fprintf(w, `<h1>Guntamatic Biostar</h1>`)
+	if snap.Err != "" {
+		fmt.Fprintf(w, `<p class="err">Poll error: %s</p>`, htmlEscape(snap.Err))
+	}
+	fmt.Fprintf(w, `<p>Updated: %s · %d channels</p>`, snap.Updated.Format("2006-01-02 15:04:05"), len(vals))
+	fmt.Fprintf(w, `<table><tr><th>Name</th><th>Value</th><th>Unit</th></tr>`)
+	for _, v := range vals {
+		fmt.Fprintf(w, `<tr><td>%s</td><td class="v">%v</td><td>%s</td></tr>`,
+			htmlEscape(v.Name), v.Value, htmlEscape(v.Unit))
+	}
+	fmt.Fprintf(w, `</table>`)
+}
+
+// serveSPA serves static files from the embedded UI, falling back to index.html for
+// paths that do not map to a real file (client-side routes). path.Clean plus fs.FS
+// semantics reject traversal.
+func (s *Server) serveSPA(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
+	if name == "" {
+		name = "index.html"
+	}
+	if f, err := s.webFS.Open(name); err == nil {
+		fi, _ := f.Stat()
+		f.Close()
+		if fi != nil && !fi.IsDir() {
+			http.ServeFileFS(w, r, s.webFS, name)
+			return
+		}
+	}
+	http.ServeFileFS(w, r, s.webFS, "index.html")
+}
+
+func writeJSON(w http.ResponseWriter, code int, v any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(v)
+}
+
+func htmlEscape(s string) string {
+	r := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;")
+	return r.Replace(s)
+}

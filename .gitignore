@@ -1,0 +1,33 @@
+# --- secrets / personal data (never commit) ---
+.env
+# customer documents & keys (root-anchored so web/ assets stay tracked)
+/*.pdf
+/*.html
+/Kundendaten_*
+/key.*
+/IMG_*.jpeg
+/IMG_*.jpg
+/IMG_*.png
+
+# --- runtime state / data ---
+/data/
+*.db
+*.db-wal
+*.db-shm
+*.gob
+guntamatic-state.json
+state.json
+guntacontrol.db
+
+# --- build output, deps, binaries ---
+web/node_modules/
+web/dist/
+web/.angular/
+*.exe
+*.exe~
+/gunta
+/guntacontrol
+scratch*
+
+# --- misc ---
+.DS_Store

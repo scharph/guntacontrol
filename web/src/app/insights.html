@@ -1,0 +1,80 @@
+<section class="head">
+  <h2>Auswertung</h2>
+  <label class="days">
+    Zeitraum Tabelle
+    <select [value]="days()" (change)="setDays(+$any($event.target).value)">
+      @for (d of [7, 14, 30, 60]; track d) {
+        <option [value]="d">{{ d }} Tage</option>
+      }
+    </select>
+  </label>
+</section>
+
+@if (error()) {
+  <div class="banner err">⚠️ {{ error() }}</div>
+}
+
+<!-- Hints -->
+<div class="card">
+  <h3>Hinweise</h3>
+  @if (!hasData()) {
+    <p class="muted">Die Datensammlung läuft – die Auswertung füllt sich, während der Server läuft.</p>
+  } @else {
+    @for (h of hints(); track $index) {
+      <div class="hint" [class.warn]="h.level === 'warn'" [class.info]="h.level === 'info'">
+        <strong>{{ h.title }}</strong>
+        <span>{{ h.detail }}</span>
+      </div>
+    }
+  }
+</div>
+
+<!-- History chart -->
+<div class="card">
+  <div class="chart-head">
+    <h3>Verlauf</h3>
+    <div class="ranges">
+      @for (r of RANGES; track r.ms) {
+        <button class="rbtn" [class.active]="rangeMs() === r.ms" (click)="setRange(r.ms)">{{ r.key }}</button>
+      }
+      @if (loading()) { <span class="spin"></span> }
+    </div>
+  </div>
+  <app-time-chart [series]="chartSeries()" [from]="from()" [to]="to()" />
+</div>
+
+<!-- Daily table -->
+<div class="card scroll">
+  <h3>Tagesauswertung</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Tag</th>
+        <th class="r">Starts</th>
+        <th class="r">Laufzeit</th>
+        <th class="r">Ø Takt</th>
+        <th class="r">Außen</th>
+        <th class="r">Kessel⚡</th>
+        <th class="r">Leistung⚡</th>
+        <th class="r">Puffer</th>
+        <th class="r">Abdeckung</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (d of rows(); track d.date) {
+        <tr [class.thin]="thin(d)">
+          <td>{{ day(d.date) }}</td>
+          <td class="r">{{ d.starts ?? '–' }}</td>
+          <td class="r">{{ opt(d.runtimeHours, ' h') }}</td>
+          <td class="r">{{ opt(d.avgCycleMinutes, ' min') }}</td>
+          <td class="r">{{ opt(d.outdoor, ' °C') }}</td>
+          <td class="r">{{ opt(d.kesselRunning, ' °C') }}</td>
+          <td class="r">{{ opt(d.powerRunning, ' %') }}</td>
+          <td class="r">{{ opt(d.bufferTop, ' °C') }}</td>
+          <td class="r muted">{{ (d.coverage * 100) | number:'1.0-0' }} %</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+  <p class="muted note">⚡ = Mittelwert während der Kessel läuft (Leistung &gt; 0). Zeilen mit geringer Abdeckung sind blass.</p>
+</div>

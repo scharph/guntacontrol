@@ -1,0 +1,18 @@
+# Build artifacts and local state — rebuilt inside the image or mounted at runtime.
+web/node_modules
+web/dist
+web/.angular
+data
+*.db
+*.db-wal
+*.db-shm
+*.gob
+*.log
+guntamatic-state.json
+state.json
+guntamatic.exe
+guntacontrol
+*.exe
+scratch*
+.git
+.env

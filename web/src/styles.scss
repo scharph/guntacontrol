@@ -1,0 +1,28 @@
+:root {
+  --bg: #eef2f5;
+  --card: #ffffff;
+  --ink: #1d2733;
+  --muted: #6b7a89;
+  --line: #e2e8ee;
+  --accent: #00a3a3;
+  --accent-ink: #ffffff;
+  --ok: #1f9d6b;
+  --err: #d7483b;
+  --shadow: 0 1px 3px rgba(20, 40, 60, 0.08), 0 8px 24px rgba(20, 40, 60, 0.06);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.45 "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, p { margin: 0; }
+
+button { font: inherit; cursor: pointer; }

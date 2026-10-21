@@ -1,0 +1,56 @@
+<div class="head">
+  <h2>Protokoll</h2>
+  <span class="tools">
+    @if (loading()) { <span class="spin" aria-label="lädt"></span> }
+    <button class="rbtn" (click)="reload()">Neu laden</button>
+  </span>
+</div>
+
+<p class="intro muted">
+  Alle Änderungen an Parametern und Einstellungen – wann, von wem (Client-IP), über
+  welche Schnittstelle, mit welchem Ergebnis.
+</p>
+
+@if (error()) {
+  <div class="banner err">⚠️ {{ error() }}</div>
+}
+
+@if (!loading() && !entries().length && !error()) {
+  <div class="banner">Noch keine Änderungen protokolliert.</div>
+}
+
+@if (entries().length) {
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Zeit</th>
+          <th>Quelle</th>
+          <th>Wer</th>
+          <th>Parameter</th>
+          <th>Wert</th>
+          <th>Ergebnis</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (e of entries(); track $index) {
+          <tr [class.err]="e.result === 'error'">
+            <td class="nowrap">{{ when(e.time) }}</td>
+            <td><span class="via" [attr.data-via]="e.via">{{ e.via }}</span></td>
+            <td class="muted">{{ e.who }}</td>
+            <td><code>{{ e.target }}</code> <span class="muted">{{ e.action }}</span></td>
+            <td class="r">{{ e.value }}</td>
+            <td>
+              <span class="res" [class.ok]="e.result === 'ok'" [class.bad]="e.result === 'error'">
+                {{ e.result === 'ok' ? '✓ OK' : '✗ Fehler' }}
+              </span>
+              @if (e.detail && e.result === 'error') {
+                <div class="detail">{{ e.detail }}</div>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

@@ -1,0 +1,77 @@
+<div class="head">
+  <h2>Zeiten</h2>
+  <span class="days">
+    @if (loading()) { <span class="spin" aria-label="lädt"></span> }
+    <button class="rbtn" (click)="reload()">Neu laden</button>
+  </span>
+</div>
+
+@if (error()) {
+  <div class="banner err">⚠️ {{ error() }}</div>
+}
+
+@if (!loading() && !schedules().length && !error()) {
+  <div class="banner">Keine Zeitprogramme gefunden.</div>
+}
+
+@for (s of schedules(); track s.title) {
+  <section class="card">
+    <div class="sched-head">
+      <h3><span class="ic">{{ icon(s.kind) }}</span> {{ s.title }}</h3>
+      @if (s.variants.length > 1) {
+        <div class="variants">
+          @for (v of s.variants; track v.id) {
+            <button
+              class="vbtn"
+              [class.active]="selectedId(s.title) === v.id"
+              (click)="selectVariant(s.title, v.id)">
+              {{ v.label }}
+            </button>
+          }
+        </div>
+      }
+    </div>
+
+    @if (activeVariant(s); as v) {
+      <!-- hour scale, aligned with the day tracks via the same grid -->
+      <div class="scale">
+        <span class="sp-name"></span>
+        <div class="sp-track">
+          @for (h of [0,6,12,18,24]; track h) {
+            <span class="tick" [style.left.%]="pct(h * 60)">{{ h }}</span>
+          }
+        </div>
+        <span class="sp-times"></span>
+      </div>
+
+      <div class="week">
+        @for (d of v.days; track d.day) {
+          <div class="row">
+            <span class="dname">{{ d.day }}</span>
+            <div class="track">
+              @for (g of [6,12,18]; track g) {
+                <span class="grid" [style.left.%]="pct(g * 60)"></span>
+              }
+              @for (w of d.windows; track $index) {
+                <span
+                  class="bar"
+                  [class.water]="s.kind !== 'heating'"
+                  [style.left.%]="pct(w.start)"
+                  [style.width.%]="pct(w.end - w.start)"
+                  [title]="label(w)"></span>
+              }
+            </div>
+            <span class="dtimes" [class.off]="!d.windows.length">{{ dayLabel(d) }}</span>
+          </div>
+        }
+      </div>
+    }
+  </section>
+}
+
+@if (schedules().length) {
+  <p class="note muted">
+    Nur-Lese-Ansicht der Uhrenprogramme des Kessels. Heizkreise haben drei
+    Witterungs-Varianten (Normal / mild / warm), Warmwasser zusätzlich ein Sommer-Programm.
+  </p>
+}

@@ -1,0 +1,104 @@
+<div class="head">
+  <h2>Loxone-Anbindung</h2>
+  <span class="muted">Server: <code>{{ host }}</code></span>
+</div>
+
+<p class="intro">
+  Der guntacontrol-Server bietet eine Klartext-HTTP-Schnittstelle für den Loxone
+  Miniserver: Werte lesen per <strong>Virtuellem HTTP/UDP Eingang</strong>, schalten per
+  <strong>Virtuellem Ausgang</strong>. Schalten erfordert Serverstart mit
+  <code>-allow-write</code> und ausgeschalteten Schreibschutz (⚙ → Sicherheit).
+</p>
+
+<!-- Lesen -->
+<section class="card">
+  <h3>1 · Werte lesen (Virtueller HTTP Eingang)</h3>
+  <p>Abfrageadresse auf <code>/loxone/status</code>, dann je Wert einen Befehl mit
+     Befehlserkennung <code>Schlüssel=</code>.</p>
+  <div class="url">
+    <code>http://{{ host }}/loxone/status</code>
+    <button class="copy" (click)="copy('http://' + host + '/loxone/status')">kopieren</button>
+  </div>
+  <p class="muted">Einzelwert ohne Werterkennung:</p>
+  <div class="url">
+    <code>http://{{ host }}/loxone/get?name=Kesseltemperatur</code>
+    <button class="copy" (click)="copy('http://' + host + '/loxone/get?name=Kesseltemperatur')">kopieren</button>
+  </div>
+</section>
+
+<!-- UDP -->
+<section class="card">
+  <h3>2 · Werte lesen per UDP-Push (empfohlen)</h3>
+  <p>Server mit <code>-loxone-udp &lt;Miniserver-IP&gt;:7000</code> starten. Dann in
+     Loxone einen <strong>Virtuellen UDP Eingang</strong> auf Port <code>7000</code>
+     anlegen und Befehle mit Befehlserkennung <code>Schlüssel=</code> ergänzen – wie
+     beim HTTP-Eingang. Datagramme sind &lt; 1200 Byte, ohne Zeilen zu zerreißen.</p>
+</section>
+
+<!-- Steuern -->
+<section class="card">
+  <h3>3 · Steuern (Virtueller Ausgang)</h3>
+  <p>Adresse <code>http://{{ host }}</code>, Befehl bei EIN
+     <code>/loxone/set?syn=&lt;SYN&gt;&amp;value=&lt;v&gt;</code> (GET). Antwort
+     <code>OK</code> oder <code>ERR: …</code>.</p>
+
+  <h4>Betriebsmodus – <code>syn=PR001</code></h4>
+  <table>
+    <thead><tr><th>value</th><th>Bedeutung</th><th>Befehl</th></tr></thead>
+    <tbody>
+      @for (m of programModes; track m.value) {
+        <tr>
+          <td class="r">{{ m.value }}</td>
+          <td>{{ m.label }}</td>
+          <td><code>/loxone/set?syn=PR001&amp;value={{ m.value }}</code></td>
+        </tr>
+      }
+    </tbody>
+  </table>
+
+  <h4>Heizkreise – <code>syn=HK001</code> (HK0), <code>HK101</code> (HK1), <code>HK201</code> (HK2)</h4>
+  <table>
+    <thead><tr><th>value</th><th>Bedeutung</th></tr></thead>
+    <tbody>
+      @for (m of circuitModes; track m.value) {
+        <tr><td class="r">{{ m.value }}</td><td>{{ m.label }}</td></tr>
+      }
+    </tbody>
+  </table>
+  <p class="muted">Weitere: <code>BK006/BK106/BK206</code> = WW-Nachladung (value=1).
+     Die Heizzeiten selbst sind nicht per API änderbar (Gerätegrenze).</p>
+</section>
+
+<!-- Audit -->
+<section class="card">
+  <h3>4 · Audit-Log</h3>
+  <p>Jede Änderung (Loxone/Web/API) wird protokolliert – Zeit, Client-IP, Quelle,
+     Parameter, Wert, Ergebnis:</p>
+  <div class="url">
+    <code>http://{{ host }}/api/audit?limit=100</code>
+    <button class="copy" (click)="copy('http://' + host + '/api/audit?limit=100')">kopieren</button>
+  </div>
+  <p class="muted">Server mit <code>-audit guntamatic-audit.log</code> starten für die
+     dauerhafte Datei (JSON-Zeilen).</p>
+</section>
+
+<!-- Schlüssel -->
+<section class="card">
+  <h3>5 · Kanal-Schlüssel ({{ channels().length }})</h3>
+  <p class="muted">Diese Schlüssel aus dem aktuellen Snapshot als Befehlserkennung
+     verwenden (mit <code>=</code>).</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Loxone-Schlüssel</th><th>Kanal</th><th>Einheit</th></tr></thead>
+      <tbody>
+        @for (c of channels(); track c.name) {
+          <tr>
+            <td><code>{{ c.key }}</code></td>
+            <td>{{ c.name }}</td>
+            <td class="muted">{{ c.unit }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
