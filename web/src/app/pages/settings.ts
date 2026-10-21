@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
-import { HttpErrorResponse } from '@angular/common/http';
 import { BoilerService } from '../core/api';
 import { ToastService } from '../core/toast';
+import { errorText } from '../core/errors';
 
 @Component({
   selector: 'app-settings',
@@ -31,12 +31,4 @@ export class SettingsPage {
       this.toast.show('err', errorText(e));
     }
   }
-}
-
-function errorText(e: unknown): string {
-  if (e instanceof HttpErrorResponse) {
-    if (e.status === 0) return 'Server nicht erreichbar';
-    return `HTTP ${e.status}`;
-  }
-  return 'Unbekannter Fehler';
 }

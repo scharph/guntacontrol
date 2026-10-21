@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { HttpErrorResponse } from '@angular/common/http';
 import { BoilerService } from '../core/api';
 import { ToastService } from '../core/toast';
+import { errorText } from '../core/errors';
 import { HeatCurve, HistSeries } from '../core/models';
 
 // Chart geometry (SVG units). Outdoor axis runs warm (left) to cold (right), like the
@@ -242,14 +242,4 @@ function round1(v: number): number {
 
 function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
-}
-
-function errorText(e: unknown): string {
-  if (e instanceof HttpErrorResponse) {
-    const body = e.error;
-    if (body && typeof body === 'object' && 'error' in body) return String((body as { error: unknown }).error);
-    if (e.status === 0) return 'Server nicht erreichbar';
-    return `HTTP ${e.status}`;
-  }
-  return 'Unbekannter Fehler';
 }

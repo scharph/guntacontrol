@@ -1,8 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { BoilerService } from '../core/api';
 import { ToastService } from '../core/toast';
+import { errorText } from '../core/errors';
 import {
   CIRCUITS,
   HK_PROGRAMS,
@@ -118,14 +118,4 @@ function matchMode(state: string, modes: ModeOption[]): ModeOption | undefined {
     const l = m.label.toUpperCase();
     return l === s || s.startsWith(l) || l.startsWith(s);
   });
-}
-
-function errorText(e: unknown): string {
-  if (e instanceof HttpErrorResponse) {
-    const body = e.error;
-    if (body && typeof body === 'object' && 'error' in body) return String((body as { error: unknown }).error);
-    if (e.status === 0) return 'Server nicht erreichbar';
-    return `HTTP ${e.status}`;
-  }
-  return 'Unbekannter Fehler';
 }

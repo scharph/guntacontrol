@@ -103,10 +103,6 @@ export class BoilerService {
     this.snapshot.reload();
   }
 
-  reloadNow(): void {
-    this.snapshot.reload();
-  }
-
   // ---- Auswertung (one-off fetches, not polled) ----
 
   history(channels: string[], from: number, to: number): Promise<HistoryResponse> {

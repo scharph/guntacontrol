@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"path"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -406,37 +405,14 @@ func sanitize(name string) string {
 	return s
 }
 
+// handleIndex serves the embedded single-page app at "/", which catches every non-API
+// path. The embedded UI is always present (wired in main); without it "/" is a 404.
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	// With an embedded UI, "/" catches every non-API path: serve the requested static
-	// file if it exists, otherwise fall back to index.html so the client app can route.
-	if s.webFS != nil {
-		s.serveSPA(w, r)
-		return
-	}
-	if r.URL.Path != "/" {
+	if s.webFS == nil {
 		http.NotFound(w, r)
 		return
 	}
-	snap := s.poller.Snapshot()
-	vals := append([]boiler.Value(nil), snap.Values...)
-	sort.Slice(vals, func(i, j int) bool { return vals[i].Name < vals[j].Name })
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="5">`)
-	fmt.Fprintf(w, `<title>guntacontrol</title><style>body{font:14px system-ui;margin:2rem;max-width:720px}`)
-	fmt.Fprintf(w, `table{border-collapse:collapse;width:100%%}td,th{border-bottom:1px solid #ddd;padding:4px 8px;text-align:left}`)
-	fmt.Fprintf(w, `td.v{text-align:right;font-variant-numeric:tabular-nums}.err{color:#b00}</style>`)
-	fmt.Fprintf(w, `<h1>guntacontrol</h1>`)
-	if snap.Err != "" {
-		fmt.Fprintf(w, `<p class="err">Poll error: %s</p>`, htmlEscape(snap.Err))
-	}
-	fmt.Fprintf(w, `<p>Updated: %s · %d channels</p>`, snap.Updated.Format("2006-01-02 15:04:05"), len(vals))
-	fmt.Fprintf(w, `<table><tr><th>Name</th><th>Value</th><th>Unit</th></tr>`)
-	for _, v := range vals {
-		fmt.Fprintf(w, `<tr><td>%s</td><td class="v">%v</td><td>%s</td></tr>`,
-			htmlEscape(v.Name), v.Value, htmlEscape(v.Unit))
-	}
-	fmt.Fprintf(w, `</table>`)
+	s.serveSPA(w, r)
 }
 
 // serveSPA serves static files from the embedded UI, falling back to index.html for
@@ -463,9 +439,4 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(v)
-}
-
-func htmlEscape(s string) string {
-	r := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;")
-	return r.Replace(s)
 }
