@@ -26,14 +26,6 @@ code {
   margin: 6px 0 10px;
 }
 .url code { background: none; padding: 0; flex: 1; }
-.copy {
-  color: var(--accent);
-  border-radius: 7px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; margin-top: 6px; }
 th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }

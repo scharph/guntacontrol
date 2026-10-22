@@ -2,7 +2,7 @@
   <h2>Zeiten</h2>
   <span class="days">
     @if (loading()) { <span class="spin" aria-label="lädt"></span> }
-    <button class="rbtn" (click)="reload()">Neu laden</button>
+    <button class="small" (click)="reload()">Neu laden</button>
   </span>
 </div>
 
@@ -22,7 +22,7 @@
         <div class="variants">
           @for (v of s.variants; track v.id) {
             <button
-              class="vbtn"
+              class="small"
               [class.active]="selectedId(s.title) === v.id"
               (click)="selectVariant(s.title, v.id)">
               {{ v.label }}

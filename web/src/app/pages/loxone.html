@@ -17,12 +17,12 @@
      Befehlserkennung <code>Schlüssel=</code>.</p>
   <div class="url">
     <code>http://{{ host }}/loxone/status</code>
-    <button class="copy" (click)="copy('http://' + host + '/loxone/status')">kopieren</button>
+    <button class="link small" (click)="copy('http://' + host + '/loxone/status')">kopieren</button>
   </div>
   <p class="muted">Einzelwert ohne Werterkennung:</p>
   <div class="url">
     <code>http://{{ host }}/loxone/get?name=Kesseltemperatur</code>
-    <button class="copy" (click)="copy('http://' + host + '/loxone/get?name=Kesseltemperatur')">kopieren</button>
+    <button class="link small" (click)="copy('http://' + host + '/loxone/get?name=Kesseltemperatur')">kopieren</button>
   </div>
 </section>
 
@@ -76,7 +76,7 @@
      Parameter, Wert, Ergebnis:</p>
   <div class="url">
     <code>http://{{ host }}/api/audit?limit=100</code>
-    <button class="copy" (click)="copy('http://' + host + '/api/audit?limit=100')">kopieren</button>
+    <button class="link small" (click)="copy('http://' + host + '/api/audit?limit=100')">kopieren</button>
   </div>
   <p class="muted">Server mit <code>-audit guntamatic-audit.log</code> starten für die
      dauerhafte Datei (JSON-Zeilen).</p>

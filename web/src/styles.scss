@@ -108,15 +108,25 @@ button, .btn {
   transition: background 0.12s, border-color 0.12s;
   &:hover:not(:disabled) { background: var(--surface-2); }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
-  &.primary {
+  /* Colour variants – pages set layout only, never button colours.
+     primary: the main action of a card; active: the selected option of a toggle group;
+     link: inline text action; danger: destructive action. */
+  &.primary,
+  &.active {
     background: var(--accent);
     border-color: var(--accent);
     color: var(--accent-ink);
     &:hover:not(:disabled) { background: var(--accent-2); border-color: var(--accent-2); }
   }
-  &.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-  &.danger { color: var(--err); }
-  &.small { padding: 3px 9px; font-size: 12px; }
+  &.link {
+    background: none;
+    border-color: transparent;
+    color: var(--accent);
+    font-weight: 600;
+    &:hover:not(:disabled) { background: none; text-decoration: underline; }
+  }
+  &.danger { color: var(--err); border-color: var(--err); }
+  &.small { padding: 4px 10px; font-size: 12.5px; font-weight: 600; }
   &.icon { padding: 6px; }
 }
 

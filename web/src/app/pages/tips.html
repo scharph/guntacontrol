@@ -23,7 +23,7 @@
               <div class="action">
                 <span>{{ a.label }}</span>
                 @if (writable(a)) {
-                  <button class="apply" (click)="apply(a)"
+                  <button class="primary small" (click)="apply(a)"
                     [disabled]="!boiler.canWrite() || busy() !== ''"
                     [title]="boiler.canWrite() ? a.syn + ' = ' + a.value : 'Schreibschutz aktiv – in den Einstellungen deaktivieren'">
                     {{ busy() === a.syn ? '…' : 'Anwenden' }}

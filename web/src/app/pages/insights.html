@@ -92,7 +92,7 @@
     <h3>Verlauf</h3>
     <div class="ranges">
       @for (r of RANGES; track r.ms) {
-        <button class="rbtn" [class.active]="rangeMs() === r.ms" (click)="setRange(r.ms)">{{ r.key }}</button>
+        <button class="small" [class.active]="rangeMs() === r.ms" (click)="setRange(r.ms)">{{ r.key }}</button>
       }
       @if (loading()) { <span class="spin"></span> }
     </div>

@@ -93,28 +93,15 @@
 .seg-btn {
   flex: 1 1 auto;
   justify-content: center;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text);
-  border-radius: 8px;
   padding: 7px 6px;
   font-size: 12.5px;
   font-weight: 600;
 }
-.seg-btn:hover:not(:disabled) { background: var(--border); }
-.seg-btn.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .seg-btn:disabled { opacity: 0.55; cursor: progress; }
 
 /* ---- all channels ---- */
 .all { margin-bottom: 4px; }
-.link {
-  background: none;
-  border: none;
-  color: var(--accent);
-  font-weight: 600;
-  padding: 4px 0;
-}
-.link:hover { background: none; text-decoration: underline; }
+.link { padding: 4px 0; }
 table { width: 100%; border-collapse: collapse; margin-top: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 th, td { padding: 8px 14px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13.5px; }
 th { color: var(--muted); font-weight: 600; background: var(--surface-2); }
