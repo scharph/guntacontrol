@@ -74,6 +74,21 @@ export interface DayInsight {
   kesselRunning?: number;
   powerRunning?: number;
   bufferTop?: number;
+  heatKWh?: number; // estimated heat output
+  pelletsKg?: number; // estimated pellet use
+  degreeDays?: number; // Heizgradtage 20/12
+  rating?: 'good' | 'fair' | 'poor'; // burner cycling grade
+}
+
+/** Aggregate over the complete days (≥ 90 % coverage) of the range. */
+export interface InsightSummary {
+  days: number;
+  pelletsKg: number;
+  kgPerDay?: number;
+  degreeDays: number;
+  kgPerDegreeDay?: number;
+  startsPerDay?: number;
+  avgCycleMinutes?: number;
 }
 
 export interface Hint {
@@ -84,6 +99,7 @@ export interface Hint {
 
 export interface Insights {
   days: DayInsight[];
+  summary: InsightSummary;
   hints: Hint[];
 }
 

@@ -41,6 +41,18 @@ type Overview struct {
 	Circuits []int `yaml:"circuits" json:"circuits"`
 }
 
+// Pellets parameterises the pellet-consumption estimate on the Auswertung page:
+// heat output = Leistung % × NominalKW over time, fuel = output / Efficiency, and
+// pellets = fuel / KWhPerKg.
+type Pellets struct {
+	// NominalKW is the boiler's rated output (Biostar Flex 23 = 23 kW).
+	NominalKW float64 `yaml:"nominalKW" json:"nominalKW"`
+	// Efficiency is the assumed seasonal boiler efficiency (0–1).
+	Efficiency float64 `yaml:"efficiency" json:"efficiency"`
+	// KWhPerKg is the pellets' calorific value (ENplus A1 ≈ 4.8 kWh/kg).
+	KWhPerKg float64 `yaml:"kwhPerKg" json:"kwhPerKg"`
+}
+
 type Config struct {
 	Listen  string `yaml:"listen" json:"listen"`   // HTTP address of the UI and API
 	DataDir string `yaml:"dataDir" json:"dataDir"` // SQLite history + audit database
@@ -57,6 +69,7 @@ type Config struct {
 	ReadOnly *bool    `yaml:"readOnly" json:"readOnly"`
 	Loxone   Loxone   `yaml:"loxone" json:"loxone"`
 	Overview Overview `yaml:"overview" json:"overview"`
+	Pellets  Pellets  `yaml:"pellets" json:"pellets"`
 }
 
 func (c *Config) applyDefaults() {
@@ -81,6 +94,15 @@ func (c *Config) applyDefaults() {
 	if c.ReadOnly == nil {
 		on := true
 		c.ReadOnly = &on
+	}
+	if c.Pellets.NominalKW <= 0 {
+		c.Pellets.NominalKW = 23
+	}
+	if c.Pellets.Efficiency <= 0 || c.Pellets.Efficiency > 1 {
+		c.Pellets.Efficiency = 0.9
+	}
+	if c.Pellets.KWhPerKg <= 0 {
+		c.Pellets.KWhPerKg = 4.8
 	}
 	// Overview.Circuits is left as-is: nil/empty means "show all heating circuits".
 }

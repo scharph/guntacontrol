@@ -54,9 +54,18 @@ type History struct {
 	db        *sql.DB
 	idx       map[string]int // channel -> position in sample.V
 	samples   []sample
+	pellets   PelletModel
 }
 
-func NewHistory(db *sql.DB, interval, retention time.Duration) *History {
+// PelletModel converts the recorded modulation into heat and pellets: heat output =
+// Leistung % × NominalKW, fuel = heat / Efficiency, pellets = fuel / KWhPerKg.
+type PelletModel struct {
+	NominalKW  float64
+	Efficiency float64
+	KWhPerKg   float64
+}
+
+func NewHistory(db *sql.DB, interval, retention time.Duration, pellets PelletModel) *History {
 	idx := make(map[string]int, len(HistoryChannels))
 	for i, c := range HistoryChannels {
 		idx[c] = i
@@ -66,6 +75,7 @@ func NewHistory(db *sql.DB, interval, retention time.Duration) *History {
 		retention: retention,
 		db:        db,
 		idx:       idx,
+		pellets:   pellets,
 	}
 	h.load()
 	return h
@@ -235,6 +245,54 @@ type DayInsight struct {
 	KesselRun    *float64 `json:"kesselRunning,omitempty"`
 	PowerRun     *float64 `json:"powerRunning,omitempty"`
 	BufferTop    *float64 `json:"bufferTop,omitempty"`
+	// HeatKWh is the estimated heat output, PelletsKg the estimated pellet use.
+	HeatKWh   *float64 `json:"heatKWh,omitempty"`
+	PelletsKg *float64 `json:"pelletsKg,omitempty"`
+	// DegreeDays is the day's Heizgradtag value (20/12: 20 − Tm when Tm < 12 °C).
+	DegreeDays *float64 `json:"degreeDays,omitempty"`
+	// Rating grades the burner cycling: good | fair | poor (see rateCycling).
+	Rating string `json:"rating,omitempty"`
+}
+
+// Summary aggregates the complete days (coverage ≥ completeCoverage) of the range.
+type Summary struct {
+	Days         int      `json:"days"`
+	PelletsKg    float64  `json:"pelletsKg"`
+	KgPerDay     *float64 `json:"kgPerDay,omitempty"`
+	DegreeDays   float64  `json:"degreeDays"`
+	KgPerDegree  *float64 `json:"kgPerDegreeDay,omitempty"`
+	StartsPerDay *float64 `json:"startsPerDay,omitempty"`
+	AvgCycleMin  *float64 `json:"avgCycleMinutes,omitempty"`
+}
+
+// completeCoverage is the data coverage from which a day counts into the Summary.
+const completeCoverage = 0.9
+
+// Degree-day base (Heizgradtage 20/12, as used in Austria): days with a mean outdoor
+// temperature below heatingLimit count indoorBase − Tm.
+const (
+	indoorBase   = 20.0
+	heatingLimit = 12.0
+)
+
+// rateCycling grades a day's burner cycling following common pellet-boiler guidance:
+// few long runs are good (≤ 5 starts, ≥ 2 h per run), many short ones poor (> 10 starts
+// or < 1 h per run). The worse of both criteria wins; days without runs are unrated.
+func rateCycling(starts int, avgCycleMin float64) string {
+	if starts == 0 {
+		return ""
+	}
+	grade := func(good, poor bool) int {
+		switch {
+		case poor:
+			return 2
+		case good:
+			return 0
+		}
+		return 1
+	}
+	g := max(grade(starts <= 5, starts > 10), grade(avgCycleMin >= 120, avgCycleMin < 60))
+	return []string{"good", "fair", "poor"}[g]
 }
 
 // Hint is a rule-based observation about recent operation.
@@ -246,8 +304,9 @@ type Hint struct {
 
 // Insights is the Auswertung payload: per-day rows plus hints.
 type Insights struct {
-	Days  []DayInsight `json:"days"`
-	Hints []Hint       `json:"hints"`
+	Days    []DayInsight `json:"days"`
+	Summary Summary      `json:"summary"`
+	Hints   []Hint       `json:"hints"`
 }
 
 // Insights computes the last `days` calendar days (today included) and a few hints.
@@ -270,8 +329,47 @@ func (h *History) Insights(days int) Insights {
 		}
 		out.Days = append(out.Days, h.dayInsight(from, to))
 	}
+	out.Summary = summarize(out.Days)
 	out.Hints = h.hints(out.Days)
 	return out
+}
+
+// summarize aggregates the complete days of a range.
+func summarize(days []DayInsight) Summary {
+	var s Summary
+	var starts int
+	var runtimeH float64
+	for _, d := range days {
+		if d.Coverage < completeCoverage || d.PelletsKg == nil {
+			continue
+		}
+		s.Days++
+		s.PelletsKg += *d.PelletsKg
+		if d.DegreeDays != nil {
+			s.DegreeDays += *d.DegreeDays
+		}
+		if d.Starts != nil {
+			starts += *d.Starts
+		}
+		if d.RuntimeHours != nil {
+			runtimeH += *d.RuntimeHours
+		}
+	}
+	if s.Days == 0 {
+		return s
+	}
+	n := float64(s.Days)
+	s.KgPerDay = ptrf(round1(s.PelletsKg / n))
+	if s.DegreeDays > 0 {
+		s.KgPerDegree = ptrf(math.Round(s.PelletsKg/s.DegreeDays*100) / 100)
+	}
+	s.StartsPerDay = ptrf(round1(float64(starts) / n))
+	if starts > 0 {
+		s.AvgCycleMin = ptrf(round1(runtimeH * 60 / float64(starts)))
+	}
+	s.PelletsKg = round1(s.PelletsKg)
+	s.DegreeDays = round1(s.DegreeDays)
+	return s
 }
 
 // stale caps how long one sample's value is trusted when the next is missing.
@@ -365,12 +463,27 @@ func (h *History) dayInsight(from, to time.Time) DayInsight {
 		c := round1(runDur.Minutes() / float64(starts))
 		d.AvgCycleMin = &c
 	}
+	if d.AvgCycleMin != nil {
+		d.Rating = rateCycling(starts, *d.AvgCycleMin)
+	}
 	if outDur > 0 {
-		d.Outdoor = ptrf(round1(outSum / outDur))
+		tm := outSum / outDur
+		d.Outdoor = ptrf(round1(tm))
+		hdd := 0.0
+		if tm < heatingLimit {
+			hdd = indoorBase - tm
+		}
+		d.DegreeDays = ptrf(round1(hdd))
 	}
 	if powDur > 0 {
 		d.KesselRun = ptrf(round1(kesSum / powDur))
 		d.PowerRun = ptrf(round1(powSum / powDur))
+	}
+	// powSum is ∫ Leistung % dt over the running time, in %·s.
+	if pm := h.pellets; pm.NominalKW > 0 && pm.Efficiency > 0 && pm.KWhPerKg > 0 {
+		heat := powSum / 100 * pm.NominalKW / 3600
+		d.HeatKWh = ptrf(round1(heat))
+		d.PelletsKg = ptrf(round1(heat / pm.Efficiency / pm.KWhPerKg))
 	}
 	if bufDur > 0 {
 		d.BufferTop = ptrf(round1(bufSum / bufDur))
@@ -396,11 +509,11 @@ func (h *History) hints(days []DayInsight) []Hint {
 	}
 
 	for _, d := range recent {
-		if d.Coverage >= 0.5 && d.Starts != nil && *d.Starts >= 10 && d.AvgCycleMin != nil && *d.AvgCycleMin < 20 {
+		if d.Coverage >= 0.5 && d.Rating == "poor" {
 			hints = append(hints, Hint{
 				Level:  "warn",
-				Title:  "Häufiges Takten",
-				Detail: "Am " + d.Date + ": " + itoa(*d.Starts) + " Starts bei Ø " + ftoa(*d.AvgCycleMin) + " min Laufzeit. Kurze Takte senken Wirkungsgrad und Lebensdauer.",
+				Title:  "Viele kurze Brennerläufe",
+				Detail: "Am " + d.Date + ": " + itoa(*d.Starts) + " Starts bei Ø " + ftoa(*d.AvgCycleMin) + " min Laufzeit. Ziel sind ≤ 5 Starts/Tag und ≥ 2 h pro Lauf – jede Zündung kostet Strom, erzeugt die meisten Emissionen und nutzt das Zündelement ab. Puffer voll durchladen statt nachheizen.",
 			})
 			break
 		}

@@ -28,5 +28,12 @@ overview:
   # (HPx02 "Betrieb HK" != Kein); set a list to force specific ones, e.g. [0, 1, 4].
   circuits: []
 
+# Pellet-consumption estimate on the Auswertung page:
+# kg = ∫ Leistung % × nominalKW dt / efficiency / kwhPerKg
+pellets:
+  nominalKW: 23        # rated boiler output (Biostar Flex 23)
+  efficiency: 0.9      # assumed seasonal efficiency
+  kwhPerKg: 4.8        # calorific value, ENplus A1 ≈ 4.8 kWh/kg
+
 loxone:
   udp: ""              # push live values to a Loxone Miniserver (host:port), empty = off

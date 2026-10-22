@@ -25,6 +25,18 @@
 .rbtn { font-size: 12.5px; font-weight: 600; padding: 6px 10px; }
 .rbtn.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 6px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.tile-top { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+.tile-value { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tile-unit { font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 3px; }
+.kpi-note { margin: 0 0 16px; }
+
+.dot { margin-right: 6px; vertical-align: middle; }
+.dot.good { color: var(--ok); }
+.dot.fair { color: var(--warn); }
+.dot.poor { color: var(--err); }
+
 .scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; min-width: 640px; }
 th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; white-space: nowrap; }

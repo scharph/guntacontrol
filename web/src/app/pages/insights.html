@@ -14,6 +14,42 @@
   <div class="banner err">⚠️ {{ error() }}</div>
 }
 
+<!-- Pellet consumption & cycling KPIs -->
+@if (summary(); as s) {
+  @if (s.days > 0) {
+    <div class="tiles">
+      <div class="tile">
+        <div class="tile-top">Pellets ({{ s.days }} Tage)</div>
+        <div class="tile-value">{{ s.pelletsKg | number:'1.0-0' }}<span class="tile-unit">kg</span></div>
+      </div>
+      <div class="tile">
+        <div class="tile-top">Ø pro Tag</div>
+        <div class="tile-value">{{ opt(s.kgPerDay) }}<span class="tile-unit">kg</span></div>
+      </div>
+      <div class="tile">
+        <div class="tile-top">pro Heizgradtag</div>
+        <div class="tile-value">{{ s.kgPerDegreeDay ?? '–' }}<span class="tile-unit">kg/HGT</span></div>
+      </div>
+      <div class="tile">
+        <div class="tile-top">
+          @if (summaryRating()) {
+            <span class="dot" [class]="summaryRating()" [title]="RATING_LABEL[summaryRating()]"></span>
+          }
+          Starts / Takt
+        </div>
+        <div class="tile-value">
+          {{ opt(s.startsPerDay) }}<span class="tile-unit">/Tag</span>
+          · {{ s.avgCycleMinutes ? opt(s.avgCycleMinutes / 60) : '–' }}<span class="tile-unit">h</span>
+        </div>
+      </div>
+    </div>
+    <p class="muted note kpi-note">
+      Schätzung aus Leistung × Nennleistung (Wirkungsgrad und Heizwert in <code>guntacontrol.yaml</code> unter <code>pellets</code>).
+      Nur vollständige Tage (≥ 90 % Daten). Heizgradtage 20/12. Ziel: ≤ 5 Starts/Tag, ≥ 2 h pro Lauf.
+    </p>
+  }
+}
+
 <!-- Configuration check -->
 <div class="card">
   <h3>Konfigurations-Check</h3>
@@ -78,6 +114,8 @@
         <th class="r">Kessel⚡</th>
         <th class="r">Leistung⚡</th>
         <th class="r">Puffer</th>
+        <th class="r">Pellets</th>
+        <th class="r">HGT</th>
         <th class="r">Abdeckung</th>
       </tr>
     </thead>
@@ -85,17 +123,24 @@
       @for (d of rows(); track d.date) {
         <tr [class.thin]="thin(d)">
           <td>{{ day(d.date) }}</td>
-          <td class="r">{{ d.starts ?? '–' }}</td>
+          <td class="r">
+            @if (d.rating) {
+              <span class="dot" [class]="d.rating" [title]="RATING_LABEL[d.rating]"></span>
+            }
+            {{ d.starts ?? '–' }}
+          </td>
           <td class="r">{{ opt(d.runtimeHours, ' h') }}</td>
           <td class="r">{{ opt(d.avgCycleMinutes, ' min') }}</td>
           <td class="r">{{ opt(d.outdoor, ' °C') }}</td>
           <td class="r">{{ opt(d.kesselRunning, ' °C') }}</td>
           <td class="r">{{ opt(d.powerRunning, ' %') }}</td>
           <td class="r">{{ opt(d.bufferTop, ' °C') }}</td>
+          <td class="r">{{ opt(d.pelletsKg, ' kg') }}</td>
+          <td class="r">{{ opt(d.degreeDays) }}</td>
           <td class="r muted">{{ (d.coverage * 100) | number:'1.0-0' }} %</td>
         </tr>
       }
     </tbody>
   </table>
-  <p class="muted note">⚡ = Mittelwert während der Kessel läuft (Leistung &gt; 0). Zeilen mit geringer Abdeckung sind blass.</p>
+  <p class="muted note">⚡ = Mittelwert während der Kessel läuft (Leistung &gt; 0). Punkt bei Starts = Takt-Bewertung (grün gut, gelb mittel, rot schlecht). Pellets = Schätzung. Zeilen mit geringer Abdeckung sind blass.</p>
 </div>

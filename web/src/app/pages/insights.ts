@@ -47,6 +47,25 @@ export class InsightsPage {
 
   protected readonly rows = computed(() => [...(this.data()?.days ?? [])].reverse());
   protected readonly hints = computed(() => this.data()?.hints ?? []);
+  protected readonly summary = computed(() => this.data()?.summary ?? null);
+
+  protected readonly RATING_LABEL: Record<string, string> = {
+    good: 'gut: ≤ 5 Starts, ≥ 2 h pro Lauf',
+    fair: 'mittel',
+    poor: 'schlecht: > 10 Starts oder < 1 h pro Lauf',
+  };
+
+  /** Grade of the summary's starts/day and run length, same thresholds as per day. */
+  protected readonly summaryRating = computed(() => {
+    const s = this.summary();
+    if (!s?.startsPerDay || !s.avgCycleMinutes) return '';
+    const grade = (good: boolean, poor: boolean) => (poor ? 2 : good ? 0 : 1);
+    const g = Math.max(
+      grade(s.startsPerDay <= 5, s.startsPerDay > 10),
+      grade(s.avgCycleMinutes >= 120, s.avgCycleMinutes < 60),
+    );
+    return ['good', 'fair', 'poor'][g];
+  });
   protected readonly hasData = computed(() => (this.data()?.days ?? []).some((d) => d.coverage > 0));
 
   protected readonly chartSeries = computed<ChartSeries[]>(() =>

@@ -69,7 +69,11 @@ func run(cfgPath, dataDirOverride string) error {
 	}
 	defer db.Close()
 
-	hist := store.NewHistory(db, cfg.PollInterval(), cfg.Retention())
+	hist := store.NewHistory(db, cfg.PollInterval(), cfg.Retention(), store.PelletModel{
+		NominalKW:  cfg.Pellets.NominalKW,
+		Efficiency: cfg.Pellets.Efficiency,
+		KWhPerKg:   cfg.Pellets.KWhPerKg,
+	})
 	poller.AddSink(hist)
 
 	// Optional UDP push to a Loxone Miniserver on every poll.
