@@ -37,6 +37,8 @@ type DeviceReader interface {
 	ActiveCircuits(ctx context.Context) ([]int, error)
 	// CircuitPrograms returns the current program per circuit (HKx01), by 0-based index.
 	CircuitPrograms(ctx context.Context) (map[int]int, error)
+	// ConfigCheck checks the configuration against the live values for operating issues.
+	ConfigCheck(ctx context.Context, live []boiler.Value) ([]boiler.Finding, error)
 }
 
 // SettingsStore exposes the write-protection settings, backed by the YAML config.
@@ -135,6 +137,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/api/schedules", s.handleSchedules)
 	mux.HandleFunc("/api/heatcurve", s.handleHeatCurves)
 	mux.HandleFunc("/api/params", s.handleParams)
+	mux.HandleFunc("/api/config-check", s.handleConfigCheck)
 	mux.HandleFunc("/api/audit", s.handleAudit)
 	s.registerLoxone(mux)
 	return mux
@@ -252,6 +255,20 @@ func (s *Server) handleParams(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"params": params})
+}
+
+// handleConfigCheck returns the configuration findings, read-only.
+func (s *Server) handleConfigCheck(w http.ResponseWriter, r *http.Request) {
+	if s.sched == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "Konfigurations-Check nicht verfügbar"})
+		return
+	}
+	findings, err := s.sched.ConfigCheck(r.Context(), s.poller.Snapshot().Values)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"findings": findings})
 }
 
 // handleAudit returns the recent change log (newest first): GET /api/audit?limit=100.

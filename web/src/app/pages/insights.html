@@ -14,6 +14,27 @@
   <div class="banner err">⚠️ {{ error() }}</div>
 }
 
+<!-- Configuration check -->
+<div class="card">
+  <h3>Konfigurations-Check</h3>
+  @if (checkError()) {
+    <p class="muted">{{ checkError() }}</p>
+  } @else if (findings() === null) {
+    <p class="muted">Einstellungen werden geprüft …</p>
+  } @else {
+    @for (f of findings(); track $index) {
+      <div class="hint" [class.warn]="f.level === 'warn'" [class.info]="f.level === 'info'">
+        <strong>{{ f.title }}</strong>
+        <span>{{ f.detail }}</span>
+        @if (f.params?.length) {
+          <small class="syn">{{ f.params!.join(' · ') }}</small>
+        }
+      </div>
+    }
+    <p class="muted note">Regelbasierte Prüfung der Kesselparameter gegen die aktuellen Messwerte – es wird nichts verstellt.</p>
+  }
+</div>
+
 <!-- Hints -->
 <div class="card">
   <h3>Hinweise</h3>

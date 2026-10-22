@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import {
   AuditResponse,
   ChannelValue,
+  ConfigCheckResponse,
   HeatCurvesResponse,
   HistoryResponse,
   Insights,
@@ -123,6 +124,10 @@ export class BoilerService {
   insights(days: number): Promise<Insights> {
     const params = new HttpParams().set('days', String(days));
     return firstValueFrom(this.http.get<Insights>('/api/insights', { params }));
+  }
+
+  configCheck(): Promise<ConfigCheckResponse> {
+    return firstValueFrom(this.http.get<ConfigCheckResponse>('/api/config-check'));
   }
 
   // ---- Zeiten (time programs, read-only, fetched on demand) ----

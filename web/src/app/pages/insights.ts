@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { BoilerService } from '../core/api';
-import { DayInsight, HistSeries, Insights } from '../core/models';
+import { DayInsight, Finding, HistSeries, Insights } from '../core/models';
 import { ChartSeries, TimeChart } from '../ui/time-chart';
 
 interface ChartDef {
@@ -39,6 +39,8 @@ export class InsightsPage {
   protected readonly error = signal('');
 
   protected readonly data = signal<Insights | null>(null);
+  protected readonly findings = signal<Finding[] | null>(null);
+  protected readonly checkError = signal('');
   private readonly series = signal<HistSeries[]>([]);
   protected readonly from = signal(0);
   protected readonly to = signal(0);
@@ -76,6 +78,16 @@ export class InsightsPage {
   protected reload(): void {
     this.loadInsights();
     this.loadHistory();
+    this.loadCheck();
+  }
+
+  private async loadCheck(): Promise<void> {
+    try {
+      this.findings.set((await this.boiler.configCheck()).findings);
+      this.checkError.set('');
+    } catch {
+      this.checkError.set('Konfigurations-Check konnte nicht geladen werden.');
+    }
   }
 
   private async loadInsights(): Promise<void> {

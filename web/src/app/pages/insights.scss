@@ -18,6 +18,7 @@
 .hint.warn { border-left-color: var(--warn); background: var(--warn-soft); }
 .hint.warn span { color: var(--warn); }
 .hint.info { border-left-color: var(--accent); }
+.hint .syn { display: block; margin-top: 4px; font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--muted); }
 
 .chart-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .ranges { display: flex; align-items: center; gap: 6px; }
