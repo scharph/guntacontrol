@@ -49,6 +49,9 @@ func (s *Server) handleLoxoneStatus(w http.ResponseWriter, r *http.Request) {
 		}
 		fmt.Fprintf(w, "%s=%s\n", key, loxone.Value(v.Value))
 	}
+	for _, k := range s.insightKPIs() {
+		fmt.Fprintf(w, "%s=%s\n", k.Key, loxone.Value(k.Value))
+	}
 }
 
 func (s *Server) handleLoxoneGet(w http.ResponseWriter, r *http.Request) {
@@ -62,6 +65,12 @@ func (s *Server) handleLoxoneGet(w http.ResponseWriter, r *http.Request) {
 	for _, v := range s.poller.Snapshot().Values {
 		if strings.EqualFold(v.Name, name) || strings.ToLower(loxone.Key(v.Name)) == want {
 			fmt.Fprint(w, loxone.Value(v.Value))
+			return
+		}
+	}
+	for _, k := range s.insightKPIs() {
+		if strings.ToLower(k.Key) == want {
+			fmt.Fprint(w, loxone.Value(k.Value))
 			return
 		}
 	}
@@ -205,6 +214,12 @@ func (s *Server) handleLoxoneTemplate(w http.ResponseWriter, r *http.Request) {
 				SourceValHigh: 100, DestValHigh: 100, MinVal: -100000, MaxVal: 100000,
 			})
 		}
+		for _, k := range s.insightKPIs() {
+			vhi.Cmds = append(vhi.Cmds, vhiCmd{
+				Title: k.Title, Comment: "Auswertung", Check: k.Key + "=", Signed: true, Analog: true,
+				SourceValHigh: 100, DestValHigh: 100, MinVal: -100000, MaxVal: 100000,
+			})
+		}
 		payload, fileName = vhi, "guntacontrol-eingang.xml"
 	}
 
@@ -243,5 +258,15 @@ func (s *Server) handleLoxoneHelp(w http.ResponseWriter, r *http.Request) {
 			unit = " [" + v.Unit + "]"
 		}
 		fmt.Fprintf(w, "  %s=%s%s   (%s)\n", key, loxone.Value(v.Value), unit, v.Name)
+	}
+	if kpis := s.insightKPIs(); len(kpis) > 0 {
+		fmt.Fprintf(w, "\nAuswertung keys (pellets estimated; full JSON at /api/insights):\n")
+		for _, k := range kpis {
+			unit := ""
+			if k.Unit != "" {
+				unit = " [" + k.Unit + "]"
+			}
+			fmt.Fprintf(w, "  %s=%s%s   (%s)\n", k.Key, loxone.Value(k.Value), unit, k.Title)
+		}
 	}
 }

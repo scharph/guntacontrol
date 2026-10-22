@@ -471,6 +471,12 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		metric := "guntamatic_" + sanitize(v.Name)
 		fmt.Fprintf(w, "%s{id=\"%d\",unit=%q} %g\n", metric, v.ID, v.Unit, f)
 	}
+
+	for _, k := range s.insightKPIs() {
+		metric := "guntamatic_insight_" + k.Metric
+		fmt.Fprintf(w, "# HELP %s %s.\n# TYPE %s gauge\n", metric, k.Title, metric)
+		fmt.Fprintf(w, "%s %g\n", metric, k.Value)
+	}
 }
 
 func sanitize(name string) string {
