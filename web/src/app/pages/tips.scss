@@ -18,6 +18,22 @@
 .tip strong { display: block; margin-bottom: 4px; }
 .tip p { font-size: 13.5px; line-height: 1.5; color: var(--muted); }
 
+.actions { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 6px 6px 10px;
+  font-size: 13px;
+}
+.apply { font-size: 12.5px; font-weight: 600; padding: 5px 12px; white-space: nowrap; }
+.apply:not(:disabled) { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.actions small { font-size: 12px; }
+
 .params { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 code {
   background: var(--surface);

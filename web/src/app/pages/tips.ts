@@ -1,12 +1,37 @@
-import { Component } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { BoilerService } from '../core/api';
+import { errorText } from '../core/errors';
+import { Param } from '../core/models';
+import { ToastService } from '../core/toast';
+
+/** One concrete change a tip proposes for this boiler. */
+interface TipAction {
+  syn: string;
+  value: string; // value sent to the boiler (enum index for enums)
+  label: string; // e.g. "FBH EG: Heizgrenze 18 → 16 °C"
+}
+
+/** Read access to the boiler's current settings, for deriving actions. */
+interface TipContext {
+  num(syn: string): number | undefined;
+  text(syn: string): string;
+  circuits: number[]; // active (or configured) heating circuits
+  name(c: number): string;
+  floorHeating(c: number): boolean;
+}
 
 interface Tip {
   title: string;
   text: string;
   // par.cgi synonyms the tip refers to, shown as hints for the Parameter page.
   params?: string[];
+  // Changes that would apply the tip here; only those differing from the current value.
+  actions?: (ctx: TipContext) => TipAction[];
 }
+
+// Flow maximum up to which a circuit is treated as floor heating.
+const FLOOR_MAX_FLOW = 45;
 
 interface TipSection {
   icon: string;
@@ -59,16 +84,38 @@ const SECTIONS: TipSection[] = [
         title: 'Fußbodenheizung: wenig oder keine Nachtabsenkung',
         text: 'Estrich ist träge – das Wiederaufheizen frisst den Großteil der Ersparnis. 2–3 K Absenkung reichen, oft ist durchlaufen sogar günstiger.',
         params: ['HKx04', 'HKx05'],
+        actions: (ctx) =>
+          ctx.circuits.filter(ctx.floorHeating).flatMap((c) => {
+            const day = ctx.num(`HK${c}04`);
+            const night = ctx.num(`HK${c}05`);
+            if (day === undefined || night === undefined || day - night <= 3) return [];
+            const target = day - 2;
+            return [{ syn: `HK${c}05`, value: target.toFixed(1), label: `${ctx.name(c)}: Nacht ${night} → ${target} °C` }];
+          }),
       },
       {
         title: 'Heizgrenze 15–16 °C',
         text: 'Für Flächenheizung in einem gedämmten Haus ist eine Abschaltung bei 18 °C Außentemperatur hoch. 15–16 °C sparen in der Übergangszeit spürbar Pellets.',
         params: ['HKx09'],
+        actions: (ctx) =>
+          ctx.circuits.filter(ctx.floorHeating).flatMap((c) => {
+            const limit = ctx.num(`HK${c}09`);
+            if (limit === undefined || limit <= 16) return [];
+            return [{ syn: `HK${c}09`, value: '16', label: `${ctx.name(c)}: Heizgrenze ${limit} → 16 °C` }];
+          }),
       },
       {
         title: 'Selten genutzte Kreise auf AUS',
         text: 'Ein Heizkörperkreis, der nur gelegentlich gebraucht wird, sollte auf AUS stehen statt in Dauerabsenkung – und bei Bedarf auf HEIZEN geschaltet werden. Den Frostschutz übernimmt die Regelung trotzdem.',
         params: ['HKx01'],
+        actions: (ctx) =>
+          ctx.circuits
+            .filter((c) => !ctx.floorHeating(c) && ctx.text(`HK${c}01`) !== 'AUS')
+            .map((c) => ({
+              syn: `HK${c}01`,
+              value: '0', // enum index of AUS
+              label: `${ctx.name(c)}: ${ctx.text(`HK${c}01`)} → AUS`,
+            })),
       },
     ],
   },
@@ -89,6 +136,12 @@ const SECTIONS: TipSection[] = [
         title: 'Warmwasser 55 °C plus Legionellen-Zyklus',
         text: 'Statt dauerhaft ≥ 60 °C den Speicher auf 55 °C halten und einmal pro Woche auf 60–65 °C aufheizen. Bei großen Anlagen bzw. Mietobjekten die lokalen Hygienevorgaben beachten.',
         params: ['BK004'],
+        actions: (ctx) => {
+          const soll = ctx.num('BK004');
+          return soll !== undefined && soll > 55
+            ? [{ syn: 'BK004', value: '55', label: `Warmwasser-Soll ${soll} → 55 °C` }]
+            : [];
+        },
       },
     ],
   },
@@ -148,5 +201,75 @@ const SECTIONS: TipSection[] = [
   styleUrl: './tips.scss',
 })
 export class TipsPage {
+  protected readonly boiler = inject(BoilerService);
+  private readonly toast = inject(ToastService);
+
   protected readonly sections = SECTIONS;
+  private readonly params = signal<Map<string, Param> | null>(null);
+  protected readonly busy = signal('');
+
+  private readonly ctx = computed<TipContext | null>(() => {
+    const p = this.params();
+    if (!p) return null;
+    const num = (syn: string) => {
+      const v = parseFloat(p.get(syn)?.value ?? '');
+      return Number.isNaN(v) ? undefined : v;
+    };
+    const names = this.boiler.circuitNames() as Record<string, string>;
+    return {
+      num,
+      text: (syn) => p.get(syn)?.value ?? '',
+      circuits: this.boiler.circuits(),
+      name: (c) => names[String(c)] || `Heizkreis ${c}`,
+      floorHeating: (c) => (num(`HP${c}06`) ?? 99) <= FLOOR_MAX_FLOW,
+    };
+  });
+
+  /** Proposed actions per tip title, recomputed when params or circuits change. */
+  protected readonly actions = computed(() => {
+    const ctx = this.ctx();
+    const out: Record<string, TipAction[]> = {};
+    if (!ctx) return out;
+    for (const s of SECTIONS) for (const t of s.tips) if (t.actions) out[t.title] = t.actions(ctx);
+    return out;
+  });
+
+  constructor() {
+    this.load();
+  }
+
+  private async load(): Promise<void> {
+    try {
+      const res = await this.boiler.params();
+      this.params.set(new Map(res.params.map((p) => [p.syn, p])));
+    } catch {
+      // The tips stay readable without the actions.
+    }
+  }
+
+  /** Sends one tip action to the boiler after confirmation, then re-reads the params. */
+  protected async apply(a: TipAction): Promise<void> {
+    if (this.busy()) return;
+    if (!this.boiler.canWrite()) {
+      this.toast.show('err', 'Schreibschutz aktiv – in den Einstellungen deaktivieren');
+      return;
+    }
+    if (!window.confirm(`${a.label}\n\n${a.syn} = ${a.value} an den Kessel senden?`)) return;
+
+    this.busy.set(a.syn);
+    this.toast.clear();
+    try {
+      const res = await this.boiler.setParam(a.syn, a.value);
+      if (res.error) {
+        this.toast.show('err', `${a.syn}: ${res.error}`);
+        return;
+      }
+      this.toast.show('ok', `${a.label}: gespeichert`);
+      await this.load();
+    } catch (e) {
+      this.toast.show('err', errorText(e));
+    } finally {
+      this.busy.set('');
+    }
+  }
 }

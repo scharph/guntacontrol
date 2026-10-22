@@ -17,6 +17,23 @@
       <div class="tip">
         <strong>{{ t.title }}</strong>
         <p>{{ t.text }}</p>
+        @if (actions()[t.title]?.length) {
+          <div class="actions">
+            @for (a of actions()[t.title]; track a.syn) {
+              <div class="action">
+                <span>{{ a.label }}</span>
+                <button class="apply" (click)="apply(a)"
+                  [disabled]="!boiler.canWrite() || busy() !== ''"
+                  [title]="boiler.canWrite() ? a.syn + ' = ' + a.value : 'Schreibschutz aktiv – in den Einstellungen deaktivieren'">
+                  {{ busy() === a.syn ? '…' : 'Anwenden' }}
+                </button>
+              </div>
+            }
+            @if (!boiler.canWrite()) {
+              <small class="muted">Schreibschutz aktiv – zum Anwenden in den Einstellungen deaktivieren.</small>
+            }
+          </div>
+        }
         @if (t.params?.length) {
           <div class="params">
             @for (p of t.params; track p) {
