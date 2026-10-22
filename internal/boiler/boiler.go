@@ -45,7 +45,7 @@ type ScheduleVariant struct {
 // Schedule groups the variants that belong to one circuit / hot-water program.
 type Schedule struct {
 	Title    string            `json:"title"`
-	Kind     string            `json:"kind"`    // "heating" | "water" | "circulation"
+	Kind     string            `json:"kind"`    // "heating" | "water"
 	Circuit  int               `json:"circuit"` // 0-based heating circuit, -1 for non-heating
 	Variants []ScheduleVariant `json:"variants"`
 }
@@ -64,6 +64,17 @@ type Param struct {
 	Max     string `json:"max,omitempty"`
 	Default string `json:"default,omitempty"`
 	Group   string `json:"group"` // category derived from the synonym prefix
+}
+
+// ---- configuration check ----
+
+// Finding is one observation of the configuration check: a setting that looks wrong or
+// wasteful for the measured operation, with the par.cgi synonyms it refers to.
+type Finding struct {
+	Level  string   `json:"level"` // info | warn
+	Title  string   `json:"title"`
+	Detail string   `json:"detail"`
+	Params []string `json:"params,omitempty"`
 }
 
 // ---- heating curve (Heizkurve) ----

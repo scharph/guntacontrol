@@ -42,7 +42,7 @@ var scheduleSpecs = []scheduleSpec{
 	{"Heizkreis 7", "heating", 7, []variantSpec{{"HK703", "Normal"}, {"HK703b", "mild"}, {"HK703c", "warm"}}},
 	{"Heizkreis 8", "heating", 8, []variantSpec{{"HK803", "Normal"}, {"HK803b", "mild"}, {"HK803c", "warm"}}},
 	{"Warmwasser", "water", -1, []variantSpec{{"BK002", "Normal"}, {"BK003", "Sommer"}}},
-	{"WW-Zirkulation", "circulation", -1, []variantSpec{{"ZK002", "Normal"}, {"ZK003", "Sommer"}}},
+	{"Zusatz-Warmwasser", "water", -1, []variantSpec{{"ZK002", "Normal"}, {"ZK003", "Sommer"}}},
 }
 
 // parseParamInts returns the leading integer fields of a par.cgi line (after the id and

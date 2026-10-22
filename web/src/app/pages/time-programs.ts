@@ -5,7 +5,6 @@ import { DaySchedule, Schedule, ScheduleVariant, TimeWindow } from '../core/mode
 const KIND_ICON: Record<string, string> = {
   heating: '🔥',
   water: '🚿',
-  circulation: '🔄',
 };
 
 @Component({

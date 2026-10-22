@@ -8,7 +8,7 @@ const GROUP_LABELS: Record<string, string> = {
   HK: 'Heizkreise',
   HP: 'Vorlauf / Heizkurve',
   BK: 'Warmwasser',
-  ZK: 'Zirkulation',
+  ZK: 'Zusatz-Warmwasser',
   PU: 'Puffer',
   SO: 'Solar',
   KT: 'Kessel',

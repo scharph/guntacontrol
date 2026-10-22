@@ -87,6 +87,19 @@ export interface Insights {
   hints: Hint[];
 }
 
+// ---- Konfigurations-Check (rule-based check of par.cgi against live values) ----
+
+export interface Finding {
+  level: 'info' | 'warn';
+  title: string;
+  detail: string;
+  params?: string[]; // par.cgi synonyms the finding refers to
+}
+
+export interface ConfigCheckResponse {
+  findings: Finding[];
+}
+
 // ---- Zeiten (time programs / Uhrenprogramme) ----
 
 export interface TimeWindow {
@@ -107,7 +120,7 @@ export interface ScheduleVariant {
 
 export interface Schedule {
   title: string; // "Heizkreis 0", "Warmwasser", ...
-  kind: 'heating' | 'water' | 'circulation';
+  kind: 'heating' | 'water';
   variants: ScheduleVariant[];
 }
 
