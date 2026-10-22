@@ -12,6 +12,7 @@ const NAV: { path: string; label: string; icon: string; exact?: boolean }[] = [
   { path: '/schedule', label: 'Zeiten', icon: '🕑' },
   { path: '/heat-curve', label: 'Heizkurve', icon: '📉' },
   { path: '/insights', label: 'Auswertung', icon: '📈' },
+  { path: '/tips', label: 'Tipps', icon: '💡' },
   { path: '/parameters', label: 'Parameter', icon: '🔧' },
   { path: '/loxone', label: 'Loxone', icon: '🏠' },
   { path: '/log', label: 'Protokoll', icon: '📝' },

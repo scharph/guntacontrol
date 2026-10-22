@@ -1,0 +1,29 @@
+:host { display: block; }
+
+.intro { font-size: 14px; margin-bottom: 16px; line-height: 1.5; }
+.intro a { color: var(--accent); }
+
+.card { margin-bottom: 16px; }
+.card h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.icon { font-size: 18px; }
+
+.tip {
+  border-left: 3px solid var(--accent);
+  background: var(--surface-2);
+  border-radius: 0 8px 8px 0;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.tip:last-child { margin-bottom: 0; }
+.tip strong { display: block; margin-bottom: 4px; }
+.tip p { font-size: 13.5px; line-height: 1.5; color: var(--muted); }
+
+.params { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+code {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+}

@@ -1,0 +1,30 @@
+<div class="page-head">
+  <h2>Tipps für den Pelletbetrieb</h2>
+</div>
+
+<p class="intro">
+  Bewährte Praxis aus der Community (HaustechnikDialog, energiesparhaus.at) und
+  Herstellerempfehlungen. Die Einstellungen dieser Anlage prüft der
+  <a routerLink="/insights">Konfigurations-Check auf der Auswertung</a>.
+  Parameter-Kürzel wie <code>HKx07</code> stehen für alle Heizkreise (x = Kreisnummer) und
+  sind auf der Seite <a routerLink="/parameters">Parameter</a> zu finden.
+</p>
+
+@for (s of sections; track s.title) {
+  <section class="card">
+    <h3><span class="icon">{{ s.icon }}</span>{{ s.title }}</h3>
+    @for (t of s.tips; track t.title) {
+      <div class="tip">
+        <strong>{{ t.title }}</strong>
+        <p>{{ t.text }}</p>
+        @if (t.params?.length) {
+          <div class="params">
+            @for (p of t.params; track p) {
+              <code>{{ p }}</code>
+            }
+          </div>
+        }
+      </div>
+    }
+  </section>
+}
