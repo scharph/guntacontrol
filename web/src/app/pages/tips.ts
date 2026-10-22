@@ -33,6 +33,11 @@ interface Tip {
 // Flow maximum up to which a circuit is treated as floor heating.
 const FLOOR_MAX_FLOW = 45;
 
+// The Level-1 key may only write operating-mode parameters via /ext/parset.cgi: PR001
+// is accepted, setpoints like BK004/HKx05/HKx09 are rejected ("Parameter konnte nicht
+// gespeichert werden!"). Everything else has to be set on the boiler display.
+const WRITABLE = /^(PR001|HK\d01)$/;
+
 interface TipSection {
   icon: string;
   title: string;
@@ -245,6 +250,14 @@ export class TipsPage {
     } catch {
       // The tips stay readable without the actions.
     }
+  }
+
+  protected writable(a: TipAction): boolean {
+    return WRITABLE.test(a.syn);
+  }
+
+  protected hasWritable(title: string): boolean {
+    return (this.actions()[title] ?? []).some((a) => this.writable(a));
   }
 
   /** Sends one tip action to the boiler after confirmation, then re-reads the params. */

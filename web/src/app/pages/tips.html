@@ -22,14 +22,18 @@
             @for (a of actions()[t.title]; track a.syn) {
               <div class="action">
                 <span>{{ a.label }}</span>
-                <button class="apply" (click)="apply(a)"
-                  [disabled]="!boiler.canWrite() || busy() !== ''"
-                  [title]="boiler.canWrite() ? a.syn + ' = ' + a.value : 'Schreibschutz aktiv – in den Einstellungen deaktivieren'">
-                  {{ busy() === a.syn ? '…' : 'Anwenden' }}
-                </button>
+                @if (writable(a)) {
+                  <button class="apply" (click)="apply(a)"
+                    [disabled]="!boiler.canWrite() || busy() !== ''"
+                    [title]="boiler.canWrite() ? a.syn + ' = ' + a.value : 'Schreibschutz aktiv – in den Einstellungen deaktivieren'">
+                    {{ busy() === a.syn ? '…' : 'Anwenden' }}
+                  </button>
+                } @else {
+                  <span class="manual" title="Über die Schnittstelle nicht schreibbar">Am Kesseldisplay einstellen</span>
+                }
               </div>
             }
-            @if (!boiler.canWrite()) {
+            @if (!boiler.canWrite() && hasWritable(t.title)) {
               <small class="muted">Schreibschutz aktiv – zum Anwenden in den Einstellungen deaktivieren.</small>
             }
           </div>
