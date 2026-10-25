@@ -197,3 +197,43 @@ func synPrefix(s string) string {
 	}
 	return s
 }
+
+// parseCircuitSetpoints reads the room setpoints of each heating circuit (HK<c>04
+// "Solltemp. Tag" and HK<c>05 "Solltemp. Nacht", numeric type 3), keyed by index.
+// Only circuits with both values are returned.
+func parseCircuitSetpoints(lines []string) map[int]boiler.CircuitSetpoint {
+	day := make(map[int]float64)
+	night := make(map[int]float64)
+	for _, line := range lines {
+		f := strings.Split(line, ";")
+		if len(f) < 3 {
+			continue
+		}
+		syn := strings.TrimSpace(f[0])
+		if len(syn) < 5 || syn[:2] != "HK" || strings.TrimSpace(f[1]) != "3" {
+			continue
+		}
+		rest := syn[2:]
+		c, err := strconv.Atoi(rest[:len(rest)-2])
+		if err != nil {
+			continue
+		}
+		v, err := strconv.ParseFloat(strings.TrimSpace(f[2]), 64)
+		if err != nil {
+			continue
+		}
+		switch rest[len(rest)-2:] {
+		case "04":
+			day[c] = v
+		case "05":
+			night[c] = v
+		}
+	}
+	m := make(map[int]boiler.CircuitSetpoint)
+	for c, d := range day {
+		if n, ok := night[c]; ok {
+			m[c] = boiler.CircuitSetpoint{Day: d, Night: n}
+		}
+	}
+	return m
+}

@@ -1,7 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { BoilerService } from '../core/api';
-import { ToastService } from '../core/toast';
-import { errorText } from '../core/errors';
 import { HeatCurve, HistSeries } from '../core/models';
 
 // Chart geometry (SVG units). Outdoor axis runs warm (left) to cold (right), like the
@@ -12,10 +10,6 @@ const PAD = { l: 40, r: 14, t: 12, b: 28 };
 const X0 = 20; // left edge: +20 °C outdoor
 const X1 = -15; // right edge: -15 °C outdoor (design temp)
 
-// Writable ranges (from the Flex par.cgi definitions).
-const SLOPE = { min: 0.1, max: 3.5, step: 0.1 };
-const SHIFT = { min: -10, max: 30, step: 1 };
-
 interface Dot {
   cx: number;
   cy: number;
@@ -23,10 +17,6 @@ interface Dot {
 interface Tick {
   p: number;
   label: string;
-}
-interface Draft {
-  slope: number;
-  shift: number;
 }
 
 // Per-circuit view model with all coordinates pre-computed, so the template only draws.
@@ -47,13 +37,10 @@ export interface CurveVM {
 })
 export class HeatCurvePage {
   protected readonly boiler = inject(BoilerService);
-  private readonly toast = inject(ToastService);
 
   protected readonly W = W;
   protected readonly H = H;
   protected readonly PAD = PAD;
-  protected readonly SLOPE = SLOPE;
-  protected readonly SHIFT = SHIFT;
 
   protected readonly curves = signal<HeatCurve[]>([]);
   protected readonly loading = signal(true);
@@ -61,10 +48,6 @@ export class HeatCurvePage {
   private readonly series = signal<HistSeries[]>([]);
   // History window used to build the measured cloud.
   protected readonly days = signal(14);
-
-  // Pending edits per circuit; the synonym currently being written disables its controls.
-  private readonly drafts = signal<Record<number, Draft>>({});
-  protected readonly busy = signal<number | null>(null);
 
   constructor() {
     this.reload();
@@ -75,10 +58,6 @@ export class HeatCurvePage {
     try {
       const curves = (await this.boiler.heatCurves()).curves;
       this.curves.set(curves);
-      // (Re)seed the editable drafts from the live settings.
-      const d: Record<number, Draft> = {};
-      for (const c of curves) d[c.circuit] = { slope: c.slope, shift: c.shift };
-      this.drafts.set(d);
 
       const channels = ['Aussentemperatur', ...new Set(curves.map((c) => c.flowChannel))];
       const to = Date.now();
@@ -89,89 +68,6 @@ export class HeatCurvePage {
       this.error.set('Heizkurve konnte nicht geladen werden.');
     } finally {
       this.loading.set(false);
-    }
-  }
-
-  // ---- editing (writes via /api/param, gated by Schreibschutz) ----
-
-  protected draft(circuit: number): Draft {
-    return this.drafts()[circuit] ?? { slope: 0, shift: 0 };
-  }
-
-  protected dirty(circuit: number): boolean {
-    const c = this.curves().find((x) => x.circuit === circuit);
-    const d = this.drafts()[circuit];
-    if (!c || !d) return false;
-    return round1(d.slope) !== round1(c.slope) || d.shift !== c.shift;
-  }
-
-  protected stepSlope(circuit: number, dir: number): void {
-    this.patch(circuit, (d) => {
-      d.slope = clamp(round1(d.slope + dir * SLOPE.step), SLOPE.min, SLOPE.max);
-    });
-  }
-
-  protected stepShift(circuit: number, dir: number): void {
-    this.patch(circuit, (d) => {
-      d.shift = clamp(d.shift + dir * SHIFT.step, SHIFT.min, SHIFT.max);
-    });
-  }
-
-  private patch(circuit: number, fn: (d: Draft) => void): void {
-    this.drafts.update((all) => {
-      const next = { ...all, [circuit]: { ...all[circuit] } };
-      fn(next[circuit]);
-      return next;
-    });
-  }
-
-  protected resetDraft(circuit: number): void {
-    const c = this.curves().find((x) => x.circuit === circuit);
-    if (c) this.patch(circuit, (d) => ((d.slope = c.slope), (d.shift = c.shift)));
-  }
-
-  /** Writes the changed heating-curve parameters of one circuit to the boiler. */
-  protected async save(circuit: number): Promise<void> {
-    if (this.busy() !== null) return;
-    if (!this.boiler.canWrite()) {
-      this.toast.show('err', 'Schreibschutz aktiv – in den Einstellungen deaktivieren');
-      return;
-    }
-    const c = this.curves().find((x) => x.circuit === circuit);
-    const d = this.drafts()[circuit];
-    if (!c || !d) return;
-
-    const changes: { syn: string; value: string; label: string }[] = [];
-    const digit = String(circuit);
-    if (round1(d.slope) !== round1(c.slope)) {
-      changes.push({ syn: `HK${digit}07`, value: round1(d.slope).toFixed(1), label: `Steilheit ${round1(d.slope).toFixed(1)}` });
-    }
-    if (d.shift !== c.shift) {
-      changes.push({ syn: `HP${digit}09`, value: String(d.shift), label: `Parallelv. ${d.shift} K` });
-    }
-    if (!changes.length) return;
-
-    const ok = window.confirm(
-      `${c.title}: ${changes.map((x) => x.label).join(', ')} an den Kessel senden?`,
-    );
-    if (!ok) return;
-
-    this.busy.set(circuit);
-    this.toast.clear();
-    try {
-      for (const ch of changes) {
-        const res = await this.boiler.setParam(ch.syn, ch.value);
-        if (res.error) {
-          this.toast.show('err', `${ch.syn}: ${res.error}`);
-          return;
-        }
-      }
-      this.toast.show('ok', `${c.title}: gespeichert`);
-      await this.reload();
-    } catch (e) {
-      this.toast.show('err', errorText(e));
-    } finally {
-      this.busy.set(null);
     }
   }
 
@@ -236,10 +132,3 @@ export class HeatCurvePage {
   }
 }
 
-function round1(v: number): number {
-  return Math.round(v * 10) / 10;
-}
-
-function clamp(v: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, v));
-}

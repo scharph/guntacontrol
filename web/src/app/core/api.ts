@@ -16,7 +16,7 @@ import {
 import { HttpParams } from '@angular/common/http';
 import { POLL_INTERVAL_MS } from './config';
 
-const EMPTY: Snapshot = { updated: '', values: [], readOnly: true, allowWrite: false, circuits: [], circuitNames: {}, circuitPrograms: {} };
+const EMPTY: Snapshot = { updated: '', values: [], readOnly: true, allowWrite: false, circuits: [], circuitNames: {}, circuitPrograms: {}, circuitSetpoints: {} };
 
 /**
  * BoilerService is the single data layer between the dashboard and the Go backend.
@@ -61,6 +61,8 @@ export class BoilerService {
   readonly circuitNames = computed(() => this.snapshot.value().circuitNames ?? {});
   // Current program per circuit (HKx01), keyed by circuit index ("0", "1", …).
   readonly circuitPrograms = computed(() => this.snapshot.value().circuitPrograms ?? {});
+  // Room setpoints per circuit (HKx04 Tag / HKx05 Nacht), keyed by circuit index.
+  readonly circuitSetpoints = computed(() => this.snapshot.value().circuitSetpoints ?? {});
   // Controls may be used only when online, writes are permitted and protection is off.
   readonly canWrite = computed(() => this.online() && this.allowWrite() && !this.readOnly());
 

@@ -60,7 +60,11 @@
           <span class="badge" [class.on]="circuitActive(c.stateChannel)">
             {{ circuitActive(c.stateChannel) ? 'Aktiv' : 'Aus' }}
           </span>
-          <span class="circuit-hint">Programm setzen:</span>
+          @if (effectiveSetpoint(c.index); as sp) {
+            <span class="circuit-hint">Soll <strong>{{ sp }}</strong></span>
+          } @else {
+            <span class="circuit-hint">Programm setzen:</span>
+          }
         </div>
         <div class="seg">
           @for (m of HK_PROGRAMS; track m.value) {
@@ -70,9 +74,13 @@
               [disabled]="busy() === c.syn || !boiler.canWrite()"
               (click)="setCircuit(c.syn, m.value)">
               {{ m.label }}
+              @if (programTemp(c.index, m.value); as t) { <span class="seg-temp">{{ t }}</span> }
             </button>
           }
         </div>
+        @if (circuitSetpoint(c.index)) {
+          <p class="circuit-note">Tag-/Nachttemperatur werden am Kesseldisplay eingestellt.</p>
+        }
       </div>
     }
   </div>

@@ -94,3 +94,11 @@ type HeatCurve struct {
 	OutdoorChannel string  `json:"outdoorChannel"` // daqdata channel for the outdoor temp
 	FlowChannel    string  `json:"flowChannel"`    // daqdata channel for the actual flow temp
 }
+
+// CircuitSetpoint holds a heating circuit's room setpoints from par.cgi. The program
+// selects which one applies: HEIZEN uses Day, ABSENKEN uses Night, NORMAL follows the
+// clock program. The Level-1 key cannot write these; they are set on the boiler display.
+type CircuitSetpoint struct {
+	Day   float64 `json:"day"`   // Solltemp. Tag, °C (HKx04)
+	Night float64 `json:"night"` // Solltemp. Nacht, °C (HKx05)
+}

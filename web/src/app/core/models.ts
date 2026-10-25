@@ -24,6 +24,14 @@ export interface Snapshot {
   circuitNames?: Record<string, string>;
   // Current program per circuit (HKx01), keyed by circuit index as a string.
   circuitPrograms?: Record<string, number>;
+  // Room setpoints per circuit (HKx04 Tag / HKx05 Nacht), keyed by circuit index.
+  circuitSetpoints?: Record<string, CircuitSetpoint>;
+}
+
+// Room setpoints of a heating circuit, °C. HEIZEN uses day, ABSENKEN night.
+export interface CircuitSetpoint {
+  day: number;
+  night: number;
 }
 
 export interface ParamAck {

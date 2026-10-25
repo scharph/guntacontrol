@@ -37,6 +37,8 @@ type DeviceReader interface {
 	ActiveCircuits(ctx context.Context) ([]int, error)
 	// CircuitPrograms returns the current program per circuit (HKx01), by 0-based index.
 	CircuitPrograms(ctx context.Context) (map[int]int, error)
+	// CircuitSetpoints returns the room setpoints (HKx04 Tag / HKx05 Nacht) per circuit.
+	CircuitSetpoints(ctx context.Context) (map[int]boiler.CircuitSetpoint, error)
 	// ConfigCheck checks the configuration against the live values for operating issues.
 	ConfigCheck(ctx context.Context, live []boiler.Value) ([]boiler.Finding, error)
 }
@@ -299,11 +301,12 @@ func (s *Server) channelUnits() map[string]string {
 // write-protection state the UI needs to gate its controls.
 type valuesResponse struct {
 	boiler.Snapshot
-	ReadOnly        bool           `json:"readOnly"`
-	AllowWrite      bool           `json:"allowWrite"`
-	Circuits        []int          `json:"circuits"`
-	CircuitNames    map[int]string `json:"circuitNames"`
-	CircuitPrograms map[int]int    `json:"circuitPrograms"`
+	ReadOnly         bool                           `json:"readOnly"`
+	AllowWrite       bool                           `json:"allowWrite"`
+	Circuits         []int                          `json:"circuits"`
+	CircuitNames     map[int]string                 `json:"circuitNames"`
+	CircuitPrograms  map[int]int                    `json:"circuitPrograms"`
+	CircuitSetpoints map[int]boiler.CircuitSetpoint `json:"circuitSetpoints"`
 }
 
 func (s *Server) handleValues(w http.ResponseWriter, r *http.Request) {
@@ -311,13 +314,15 @@ func (s *Server) handleValues(w http.ResponseWriter, r *http.Request) {
 	// fall back to the default titles / "show all" in the UI.
 	names, _ := s.sched.CircuitNames(r.Context())
 	programs, _ := s.sched.CircuitPrograms(r.Context())
+	setpoints, _ := s.sched.CircuitSetpoints(r.Context())
 	writeJSON(w, http.StatusOK, valuesResponse{
-		Snapshot:        s.poller.Snapshot(),
-		ReadOnly:        s.settings.ReadOnly(),
-		AllowWrite:      s.settings.AllowWrite(),
-		Circuits:        s.effectiveCircuits(r.Context()),
-		CircuitNames:    names,
-		CircuitPrograms: programs,
+		Snapshot:         s.poller.Snapshot(),
+		ReadOnly:         s.settings.ReadOnly(),
+		AllowWrite:       s.settings.AllowWrite(),
+		Circuits:         s.effectiveCircuits(r.Context()),
+		CircuitNames:     names,
+		CircuitPrograms:  programs,
+		CircuitSetpoints: setpoints,
 	})
 }
 

@@ -49,9 +49,10 @@ type FlexBackend struct {
 
 // circuitInfo bundles the heating-circuit metadata read from one par.cgi fetch.
 type circuitInfo struct {
-	names    map[int]string // HKx11 custom names (non-empty only)
-	active   []int          // 0-based indices with HPx02 != "Kein"
-	programs map[int]int    // HKx01 current program per circuit
+	names     map[int]string                 // HKx11 custom names (non-empty only)
+	active    []int                          // 0-based indices with HPx02 != "Kein"
+	programs  map[int]int                    // HKx01 current program per circuit
+	setpoints map[int]boiler.CircuitSetpoint // HKx04/HKx05 room setpoints per circuit
 }
 
 // circuitInfoTTL is how long cached circuit metadata is reused before par.cgi is read
@@ -77,9 +78,10 @@ func (b *FlexBackend) circuitInfoCached(ctx context.Context) (*circuitInfo, erro
 		return ci, err
 	}
 	ci := &circuitInfo{
-		names:    parseCircuitNames(lines),
-		active:   parseActiveCircuits(lines),
-		programs: parseCircuitPrograms(lines),
+		names:     parseCircuitNames(lines),
+		active:    parseActiveCircuits(lines),
+		programs:  parseCircuitPrograms(lines),
+		setpoints: parseCircuitSetpoints(lines),
 	}
 	b.infoMu.Lock()
 	b.info = ci
@@ -103,6 +105,15 @@ func (b *FlexBackend) CircuitPrograms(ctx context.Context) (map[int]int, error) 
 		return nil, err
 	}
 	return ci.programs, err
+}
+
+// CircuitSetpoints returns the room setpoints (HKx04 Tag / HKx05 Nacht) per circuit.
+func (b *FlexBackend) CircuitSetpoints(ctx context.Context) (map[int]boiler.CircuitSetpoint, error) {
+	ci, err := b.circuitInfoCached(ctx)
+	if ci == nil {
+		return nil, err
+	}
+	return ci.setpoints, err
 }
 
 // CircuitNames returns the user-set heating-circuit names (HKx11), keyed by 0-based index.

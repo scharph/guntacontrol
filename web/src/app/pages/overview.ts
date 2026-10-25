@@ -11,7 +11,7 @@ import {
   PROGRAMS,
   TILES,
 } from '../core/config';
-import { ModeOption } from '../core/models';
+import { CircuitSetpoint, ModeOption } from '../core/models';
 
 @Component({
   selector: 'app-overview',
@@ -43,6 +43,37 @@ export class OverviewPage {
   protected circuitProgram(index: number): number | null {
     const p = this.boiler.circuitPrograms()[String(index)];
     return typeof p === 'number' ? p : null;
+  }
+
+  /** Room setpoints of a circuit (HKx04/HKx05), or null if unknown. */
+  protected circuitSetpoint(index: number): CircuitSetpoint | null {
+    return this.boiler.circuitSetpoints()[String(index)] ?? null;
+  }
+
+  /** Setpoint a program button selects, e.g. "21,5°" for HEIZEN; empty if none. */
+  protected programTemp(index: number, program: number): string {
+    const sp = this.circuitSetpoint(index);
+    if (!sp) return '';
+    if (program === 2) return fmtTemp(sp.day);
+    if (program === 3 || program === 4) return fmtTemp(sp.night);
+    return '';
+  }
+
+  /** The setpoint the circuit's current program applies, as text for the card. */
+  protected effectiveSetpoint(index: number): string {
+    const sp = this.circuitSetpoint(index);
+    const p = this.circuitProgram(index);
+    if (!sp || p == null) return '';
+    switch (p) {
+      case 0:
+        return 'Aus (Frostschutz)';
+      case 1:
+        return `${fmtTemp(sp.day)} Tag / ${fmtTemp(sp.night)} Nacht · Zeitprogramm`;
+      case 2:
+        return `${fmtTemp(sp.day)}C (Tag)`;
+      default:
+        return `${fmtTemp(sp.night)}C (Nacht)`;
+    }
   }
 
   // The synonym currently being written (disables its controls + shows a spinner).
@@ -138,4 +169,9 @@ function matchMode(state: string, modes: ModeOption[]): ModeOption | undefined {
     const l = m.label.toUpperCase();
     return l === s || s.startsWith(l) || l.startsWith(s);
   });
+}
+
+// Formats a setpoint the German way with a degree sign: 21.5 -> "21,5°".
+function fmtTemp(v: number): string {
+  return `${v.toLocaleString('de-DE', { maximumFractionDigits: 1 })}°`;
 }
