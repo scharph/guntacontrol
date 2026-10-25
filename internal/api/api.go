@@ -518,6 +518,11 @@ func (s *Server) serveSPA(w http.ResponseWriter, r *http.Request) {
 	if name == "" {
 		name = "index.html"
 	}
+	// Browsers probe /favicon.ico on their own; answer with the SVG app icon instead of
+	// the index.html fallback, which they cannot use and which keeps a stale icon cached.
+	if name == "favicon.ico" {
+		name = "favicon.svg"
+	}
 	if f, err := s.webFS.Open(name); err == nil {
 		fi, _ := f.Stat()
 		f.Close()
