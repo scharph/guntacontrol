@@ -166,7 +166,7 @@ type voTemplate struct {
 // handleLoxoneTemplate emits a ready-to-import LOXONE Config template:
 //
 //	GET /loxone/template          Virtual HTTP Input (reads /loxone/status) — monitoring
-//	GET /loxone/template?type=out Virtual Output (writes /loxone/set) — heating-circuit control
+//	GET /loxone/template?type=out Virtual Output (writes /loxone/set) — circuit programs + hot-water reload
 func (s *Server) handleLoxoneTemplate(w http.ResponseWriter, r *http.Request) {
 	base := "http://" + r.Host
 	var (
@@ -196,6 +196,12 @@ func (s *Server) handleLoxoneTemplate(w http.ResponseWriter, r *http.Request) {
 				CmdOff:       fmt.Sprintf("/loxone/set?syn=%s&value=3", syn),
 			})
 		}
+		// Pulse to request a one-off hot-water reload (BK006 = Ja); the boiler resets it.
+		vo.Cmds = append(vo.Cmds, voCmd{
+			Title:       "Warmwasser nachladen",
+			CmdOnMethod: "GET",
+			CmdOn:       "/loxone/set?syn=BK006&value=1",
+		})
 		payload, fileName = vo, "guntacontrol-ausgang.xml"
 	} else {
 		vhi := vhiTemplate{

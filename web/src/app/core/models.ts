@@ -26,12 +26,22 @@ export interface Snapshot {
   circuitPrograms?: Record<string, number>;
   // Room setpoints per circuit (HKx04 Tag / HKx05 Nacht), keyed by circuit index.
   circuitSetpoints?: Record<string, CircuitSetpoint>;
+  // Kesselfreigabe K0010 (0=AUTO 1=AUS 2=DAUER), -1 if unknown.
+  boilerRelease?: number;
+  // Hot-water tanks (BKx04 setpoint, BKx06 reload flag), keyed by tank index.
+  dhw?: Record<string, DHW>;
 }
 
 // Room setpoints of a heating circuit, °C. HEIZEN uses day, ABSENKEN night.
 export interface CircuitSetpoint {
   day: number;
   night: number;
+}
+
+// One hot-water tank: setpoint (display only) and whether a reload is requested.
+export interface DHW {
+  setpoint: number;
+  reload: boolean;
 }
 
 export interface ParamAck {

@@ -9,6 +9,8 @@ import {
   PROGRAM_STATE_CHANNEL,
   PROGRAM_SYN,
   PROGRAMS,
+  RELEASE_MODES,
+  RELEASE_SYN,
   TILES,
 } from '../core/config';
 import { CircuitSetpoint, ModeOption } from '../core/models';
@@ -26,6 +28,18 @@ export class OverviewPage {
   protected readonly PROGRAMS = PROGRAMS;
   protected readonly HK_PROGRAMS = HK_PROGRAMS;
   protected readonly TILES = TILES;
+  protected readonly RELEASE_MODES = RELEASE_MODES;
+  protected readonly RELEASE_SYN = RELEASE_SYN;
+
+  /** Hot-water tanks with a connected sensor ("Warmwasser N" not 120 / -20 °C). */
+  protected readonly tanks = computed(() =>
+    Object.entries(this.boiler.dhw())
+      .map(([i, d]) => ({ index: Number(i), syn: `BK${i}06`, channel: `Warmwasser ${i}`, ...d }))
+      .filter((t) => {
+        const v = this.boiler.num(t.channel);
+        return v != null && v > -20 && v < 120;
+      }),
+  );
 
   // Heating circuits to show, filtered by the server's overview.circuits config.
   // An empty selection means "show all".
@@ -121,6 +135,15 @@ export class OverviewPage {
 
   protected async setCircuit(syn: string, value: number): Promise<void> {
     await this.write(syn, value, labelOf(HK_PROGRAMS, value));
+  }
+
+  protected async setRelease(value: number): Promise<void> {
+    await this.write(RELEASE_SYN, value, labelOf(RELEASE_MODES, value));
+  }
+
+  /** Requests a one-off hot-water reload (BKx06 = Ja). */
+  protected async reloadDHW(syn: string): Promise<void> {
+    await this.write(syn, 1, 'Nachladen');
   }
 
   private async write(syn: string, value: number, label: string): Promise<void> {

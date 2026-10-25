@@ -102,3 +102,9 @@ type CircuitSetpoint struct {
 	Day   float64 `json:"day"`   // Solltemp. Tag, °C (HKx04)
 	Night float64 `json:"night"` // Solltemp. Nacht, °C (HKx05)
 }
+
+// DHW is the state of one domestic-hot-water tank (Warmwasser) from par.cgi.
+type DHW struct {
+	Setpoint float64 `json:"setpoint"` // WW Solltemp., °C (BKx04) — display only
+	Reload   bool    `json:"reload"`   // WW Nachladen requested (BKx06 = Ja)
+}

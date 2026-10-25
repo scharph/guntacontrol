@@ -53,6 +53,8 @@ type circuitInfo struct {
 	active    []int                          // 0-based indices with HPx02 != "Kein"
 	programs  map[int]int                    // HKx01 current program per circuit
 	setpoints map[int]boiler.CircuitSetpoint // HKx04/HKx05 room setpoints per circuit
+	release   int                            // K0010 Kesselfreigabe (0=AUTO 1=AUS 2=DAUER), -1 unknown
+	dhw       map[int]boiler.DHW             // BKx04/BKx06 hot-water tanks
 }
 
 // circuitInfoTTL is how long cached circuit metadata is reused before par.cgi is read
@@ -82,6 +84,11 @@ func (b *FlexBackend) circuitInfoCached(ctx context.Context) (*circuitInfo, erro
 		active:    parseActiveCircuits(lines),
 		programs:  parseCircuitPrograms(lines),
 		setpoints: parseCircuitSetpoints(lines),
+		release:   -1,
+		dhw:       parseDHW(lines),
+	}
+	if v, ok := parseEnum(lines, "K0010"); ok {
+		ci.release = v
 	}
 	b.infoMu.Lock()
 	b.info = ci
@@ -114,6 +121,16 @@ func (b *FlexBackend) CircuitSetpoints(ctx context.Context) (map[int]boiler.Circ
 		return nil, err
 	}
 	return ci.setpoints, err
+}
+
+// BoilerControls returns the Kesselfreigabe (K0010, -1 if unknown) and the hot-water
+// tanks (BKx04/BKx06), keyed by tank index.
+func (b *FlexBackend) BoilerControls(ctx context.Context) (int, map[int]boiler.DHW, error) {
+	ci, err := b.circuitInfoCached(ctx)
+	if ci == nil {
+		return -1, nil, err
+	}
+	return ci.release, ci.dhw, err
 }
 
 // CircuitNames returns the user-set heating-circuit names (HKx11), keyed by 0-based index.

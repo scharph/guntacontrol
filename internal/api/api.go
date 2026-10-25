@@ -39,6 +39,9 @@ type DeviceReader interface {
 	CircuitPrograms(ctx context.Context) (map[int]int, error)
 	// CircuitSetpoints returns the room setpoints (HKx04 Tag / HKx05 Nacht) per circuit.
 	CircuitSetpoints(ctx context.Context) (map[int]boiler.CircuitSetpoint, error)
+	// BoilerControls returns the Kesselfreigabe (K0010, -1 if unknown) and the
+	// hot-water tanks (BKx04/BKx06) by tank index.
+	BoilerControls(ctx context.Context) (int, map[int]boiler.DHW, error)
 	// ConfigCheck checks the configuration against the live values for operating issues.
 	ConfigCheck(ctx context.Context, live []boiler.Value) ([]boiler.Finding, error)
 }
@@ -307,6 +310,8 @@ type valuesResponse struct {
 	CircuitNames     map[int]string                 `json:"circuitNames"`
 	CircuitPrograms  map[int]int                    `json:"circuitPrograms"`
 	CircuitSetpoints map[int]boiler.CircuitSetpoint `json:"circuitSetpoints"`
+	BoilerRelease    int                            `json:"boilerRelease"` // K0010: 0=AUTO 1=AUS 2=DAUER, -1 unknown
+	DHW              map[int]boiler.DHW             `json:"dhw"`
 }
 
 func (s *Server) handleValues(w http.ResponseWriter, r *http.Request) {
@@ -315,6 +320,7 @@ func (s *Server) handleValues(w http.ResponseWriter, r *http.Request) {
 	names, _ := s.sched.CircuitNames(r.Context())
 	programs, _ := s.sched.CircuitPrograms(r.Context())
 	setpoints, _ := s.sched.CircuitSetpoints(r.Context())
+	release, dhw, _ := s.sched.BoilerControls(r.Context())
 	writeJSON(w, http.StatusOK, valuesResponse{
 		Snapshot:         s.poller.Snapshot(),
 		ReadOnly:         s.settings.ReadOnly(),
@@ -323,6 +329,8 @@ func (s *Server) handleValues(w http.ResponseWriter, r *http.Request) {
 		CircuitNames:     names,
 		CircuitPrograms:  programs,
 		CircuitSetpoints: setpoints,
+		BoilerRelease:    release,
+		DHW:              dhw,
 	})
 }
 

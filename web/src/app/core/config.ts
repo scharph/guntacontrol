@@ -14,6 +14,14 @@ export const PROGRAMS: ModeOption[] = [
   { value: 8, label: 'Handbetrieb' },
 ];
 
+// K0010 "Kesselfreigabe" — whether the boiler may fire (par.cgi enum).
+export const RELEASE_SYN = 'K0010';
+export const RELEASE_MODES: ModeOption[] = [
+  { value: 0, label: 'Auto' },
+  { value: 1, label: 'Aus' },
+  { value: 2, label: 'Dauer' },
+];
+
 // HK0xx "Progamm HKx" — per heating circuit (par.cgi: min 1, max 4; 0 = Aus).
 export const HK_PROGRAMS: ModeOption[] = [
   { value: 0, label: 'Aus' },

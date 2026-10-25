@@ -2,6 +2,7 @@ package device
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -234,6 +235,41 @@ func parseCircuitSetpoints(lines []string) map[int]boiler.CircuitSetpoint {
 		if n, ok := night[c]; ok {
 			m[c] = boiler.CircuitSetpoint{Day: d, Night: n}
 		}
+	}
+	return m
+}
+
+// parseEnum returns the selected index of the enum parameter syn (type 6), if present.
+func parseEnum(lines []string, syn string) (int, bool) {
+	for _, line := range lines {
+		f := strings.Split(line, ";")
+		if len(f) < 3 || strings.TrimSpace(f[0]) != syn || strings.TrimSpace(f[1]) != "6" {
+			continue
+		}
+		v, err := strconv.Atoi(strings.TrimSpace(f[2]))
+		return v, err == nil
+	}
+	return 0, false
+}
+
+// parseDHW reads the hot-water tanks BK0..BK2: setpoint BK<x>04 and the reload flag
+// BK<x>06 ("WW Nachladen", 0=Nein 1=Ja), keyed by tank index.
+func parseDHW(lines []string) map[int]boiler.DHW {
+	m := make(map[int]boiler.DHW)
+	for x := 0; x <= 2; x++ {
+		reload, ok := parseEnum(lines, fmt.Sprintf("BK%d06", x))
+		if !ok {
+			continue
+		}
+		d := boiler.DHW{Reload: reload == 1}
+		for _, line := range lines {
+			f := strings.Split(line, ";")
+			if len(f) >= 3 && strings.TrimSpace(f[0]) == fmt.Sprintf("BK%d04", x) {
+				d.Setpoint, _ = strconv.ParseFloat(strings.TrimSpace(f[2]), 64)
+				break
+			}
+		}
+		m[x] = d
 	}
 	return m
 }

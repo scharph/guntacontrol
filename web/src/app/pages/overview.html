@@ -41,6 +41,57 @@
   }
 </section>
 
+<!-- Boiler release + hot water -->
+@if (boiler.boilerRelease() >= 0 || tanks().length) {
+<section class="circuits">
+  <h2>Kessel &amp; Warmwasser</h2>
+  <div class="circuit-grid">
+    @if (boiler.boilerRelease() >= 0) {
+      <div class="circuit">
+        <div class="circuit-head">
+          <span class="circuit-title">Kesselfreigabe</span>
+        </div>
+        <div class="circuit-state">
+          <span class="circuit-hint">Darf der Kessel anspringen?</span>
+        </div>
+        <div class="seg">
+          @for (m of RELEASE_MODES; track m.value) {
+            <button
+              class="seg-btn"
+              [class.active]="boiler.boilerRelease() === m.value"
+              [disabled]="busy() === RELEASE_SYN || !boiler.canWrite()"
+              (click)="setRelease(m.value)">
+              {{ m.label }}
+            </button>
+          }
+        </div>
+        <p class="circuit-note">Auto = nach Bedarf · Aus = gesperrt · Dauer = dauerhaft freigegeben</p>
+      </div>
+    }
+    @for (t of tanks(); track t.index) {
+      <div class="circuit">
+        <div class="circuit-head">
+          <span class="circuit-title">Warmwasser{{ tanks().length > 1 ? ' ' + t.index : '' }}</span>
+          <span class="circuit-flow">{{ boiler.num(t.channel) | number:'1.1-1' }} °C</span>
+        </div>
+        <div class="circuit-state">
+          <span class="badge" [class.on]="t.reload">{{ t.reload ? 'Nachladen aktiv' : 'Bereit' }}</span>
+          <span class="circuit-hint">Soll <strong>{{ t.setpoint | number:'1.0-1' }} °C</strong></span>
+        </div>
+        <div class="seg">
+          <button
+            class="seg-btn"
+            [disabled]="busy() === t.syn || t.reload || !boiler.canWrite()"
+            (click)="reloadDHW(t.syn)">
+            Jetzt nachladen
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+</section>
+}
+
 <!-- Heating circuits -->
 @if (circuits().length) {
 <section class="circuits">
